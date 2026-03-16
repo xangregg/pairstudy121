@@ -876,13 +876,43 @@ function setRatingEnabled(enabled) {
     for (const b of UI.ratingBtns) b.disabled = !enabled;
 }
 
+function ensureDesign() {
+    if (session.design) return;
+    const rng = mulberry32((session.participantSeed ^ 0xA5A5A5A5) >>> 0);
+    session.design = makeDesign({rng});
+    const orientOverride = params.get("orientation");
+    if (orientOverride === "horizontal" || orientOverride === "vertical")
+        session.design.orientation = orientOverride;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+}
+
+function renderIntroThumbnails() {
+    const steps = getOnboardingSteps();
+    const chartSteps = steps.filter(s => s.type === "chartType");
+    const thumbs = document.querySelectorAll(".introThumb");
+    const thumbW = 140, thumbH = 200;
+    chartSteps.forEach((step, i) => {
+        if (i >= thumbs.length) return;
+        const c = thumbs[i];
+        c.width  = thumbW * 2;   // 2× for crisp rendering
+        c.height = thumbH * 2;
+        const ct = session.design.selectedChartTypes[step.index];
+        const opts = getLiveCatalogOptions(ct);
+        const panel = buildChartTypeExamplePanel(ct.type);
+        let mn = Infinity, mx = -Infinity;
+        for (const v of panel.y) { if (v < mn) mn = v; if (v > mx) mx = v; }
+        const span = (mx - mn) || 1;
+        const ctx = c.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, c.width, c.height);
+        renderChart(ctx, c, ct.type, panel,
+            mn - span * 0.12, mx + span * 0.12,
+            { violinScale: 7, ...opts }, "vertical", session.design.jitter);
+    });
+}
+
 function beginSession() {
-    if (!session.design) {
-        const rng = mulberry32((session.participantSeed ^ 0xA5A5A5A5) >>> 0);
-        session.design = makeDesign({rng});
-        const orientOverride = params.get("orientation");
-        if (orientOverride === "horizontal" || orientOverride === "vertical")
-            session.design.orientation = orientOverride;
+    if (!session.startedAtISO) {
         session.startedAtISO = new Date().toISOString();
         session.trialIndex = 0;
         session.results = [];
@@ -1049,7 +1079,9 @@ function resetSession() {
     UI.commentField.disabled = false;
     UI.submitCommentBtn.disabled = false;
     UI.commentStatus.textContent = "";
+    ensureDesign();
     showIntro();
+    renderIntroThumbnails();
 }
 
 /** ---------- Wire up ---------- **/
@@ -1085,8 +1117,10 @@ if (params.get("diagnostics") !== "true") {
 }
 
 // Resume from wherever the participant left off
-if (!session.design) {
+if (!session.startedAtISO) {
+    ensureDesign();
     showIntro();
+    renderIntroThumbnails();
 }
 else {
     const steps = getOnboardingSteps();

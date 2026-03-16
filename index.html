@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Chart Perception Study</title>
+    <title>Paired Differences Perception Study</title>
     <!-- Set data-theme before first paint to avoid flash of wrong theme -->
     <script>
         (function () {
@@ -68,18 +68,14 @@
 
         /* ---- Intro page ---- */
         #introPage { max-width: 620px; }
-        #introPage h1 { font-size: 22px; }
-        .intro-body { font-size: 15px; line-height: 1.65; color: var(--text); }
-        .intro-body p { margin: 0 0 14px; }
+        .intro-welcome { font-size: 30px; font-weight: 300; color: var(--text-secondary); margin: 0 0 4px; letter-spacing: 0.01em; }
+        #introPage h1 { font-size: 26px; margin: 0 0 8px; }
+        .intro-tagline { font-size: 16px; font-style: italic; color: var(--text-muted); margin: 0 0 22px; }
+        .intro-body { font-size: 16px; line-height: 1.65; color: var(--text); }
+        .intro-body p { margin: 0 0 12px; }
         .intro-body strong { color: var(--text); }
-        .scale-preview { margin: 18px 0; border-collapse: collapse; width: 100%; font-size: 14px; }
-        .scale-preview td, .scale-preview th {
-            border: 1px solid var(--border-light);
-            padding: 7px 12px;
-            text-align: left;
-        }
-        .scale-preview th { background: var(--surface-alt); font-weight: 600; }
-        .scale-num { text-align: center !important; font-weight: 700; width: 48px; }
+        #introThumbnails { display: flex; gap: 10px; margin: 24px 0 4px; }
+        .introThumb { flex: 1; min-width: 0; display: block; width: 100%; height: auto; background: #ffffff; border-radius: 6px; }
         #introStartBtn { display: block; margin-left: auto; margin-top: 20px; font-size: 15px; padding: 12px 32px; background: var(--action-bg); color: var(--action-fg); border-color: var(--action-bg); border-radius: 10px; }
         #introStartBtn:hover { background: var(--action-hover); border-color: var(--action-hover); }
 
@@ -194,18 +190,20 @@
 
 <!-- ===================== INTRO PAGE ===================== -->
 <div id="introPage">
-
-    <h1>Chart Perception Study</h1>
+    <p class="intro-welcome">Welcome!</p>
+    <h1>Paired Differences Perception Study</h1>
+    <p class="intro-tagline">How well do statistical charts reveal differences between groups?</p>
     <div class="intro-body">
-        <p>
-            In this study you will be shown pairs of statistical charts and asked to judge
-            whether the two charts appear to come from <strong>different underlying sources</strong>.
-        </p>
-        <p>
-            Before the main study there is a short training section that explains
-            what you will be looking at. The whole study takes around 10–15 minutes.
-        </p>
-        <p>There are no right or wrong answers.</p>
+        <p>In this study you will be shown pairs of statistical charts and asked to judge
+            whether the two charts appear to come from <strong>different underlying sources</strong>.</p>
+        <p>There is a short training section before the main study.
+            The whole study takes around 10–15 minutes, and there are <strong>no right or wrong answers</strong>.</p>
+    </div>
+    <div id="introThumbnails">
+        <canvas class="introThumb"></canvas>
+        <canvas class="introThumb"></canvas>
+        <canvas class="introThumb"></canvas>
+        <canvas class="introThumb"></canvas>
     </div>
     <button id="introStartBtn">Start</button>
 </div>
