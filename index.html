@@ -1,0 +1,303 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Chart Perception Study</title>
+    <!-- Set data-theme before first paint to avoid flash of wrong theme -->
+    <script>
+        (function () {
+            const q = new URLSearchParams(location.search).get("theme");
+            const theme = (q === "dark" || q === "light") ? q
+                : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+            document.documentElement.setAttribute("data-theme", theme);
+        })();
+    </script>
+    <style>
+        :root {
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+            --bg:             #ffffff;
+            --text:           #222222;
+            --text-secondary: #444444;
+            --text-muted:     #555555;
+            --text-faint:     #777777;
+            --border:         #cccccc;
+            --border-light:   #dddddd;
+            --surface:        #fafafa;
+            --surface-hover:  #f0f0f0;
+            --surface-alt:    #f5f5f5;
+            --progress-track: #eeeeee;
+            --progress-fill:  #aaaaaa;
+            --action-bg:      #222222;
+            --action-fg:      #ffffff;
+            --action-hover:   #444444;
+        }
+        [data-theme="dark"] {
+            --bg:             #1c1c1e;
+            --text:           #e0e0e0;
+            --text-secondary: #c0c0c0;
+            --text-muted:     #999999;
+            --text-faint:     #666666;
+            --border:         #3a3a3a;
+            --border-light:   #2e2e2e;
+            --surface:        #2a2a2a;
+            --surface-hover:  #363636;
+            --surface-alt:    #252525;
+            --progress-track: #2a2a2a;
+            --progress-fill:  #606060;
+            --action-bg:      #e0e0e0;
+            --action-fg:      #111111;
+            --action-hover:   #c0c0c0;
+        }
+        body { margin: 0; padding: 24px; max-width: 720px; margin-inline: auto; background: var(--bg); color: var(--text); }
+
+        /* ---- Shared ---- */
+        h1 { font-size: 22px; margin: 0 0 20px; }
+        button {
+            padding: 10px 16px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover:not(:disabled) { background: var(--surface-hover); }
+        button:disabled { opacity: 0.45; cursor: default; }
+
+        /* ---- Intro page ---- */
+        #introPage { max-width: 620px; }
+        #introPage h1 { font-size: 22px; }
+        .intro-body { font-size: 15px; line-height: 1.65; color: var(--text); }
+        .intro-body p { margin: 0 0 14px; }
+        .intro-body strong { color: var(--text); }
+        .scale-preview { margin: 18px 0; border-collapse: collapse; width: 100%; font-size: 14px; }
+        .scale-preview td, .scale-preview th {
+            border: 1px solid var(--border-light);
+            padding: 7px 12px;
+            text-align: left;
+        }
+        .scale-preview th { background: var(--surface-alt); font-weight: 600; }
+        .scale-num { text-align: center !important; font-weight: 700; width: 48px; }
+        #introStartBtn { display: block; margin-left: auto; margin-top: 20px; font-size: 15px; padding: 12px 32px; background: var(--action-bg); color: var(--action-fg); border-color: var(--action-bg); border-radius: 10px; }
+        #introStartBtn:hover { background: var(--action-hover); border-color: var(--action-hover); }
+
+        /* ---- Background page ---- */
+        #backgroundPage { display: none; max-width: 620px; }
+        #backgroundPage h1 { font-size: 22px; margin: 0 0 12px; }
+        .bg-intro { font-size: 18px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5; }
+        .bg-grid { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+        .bg-row { display: flex; align-items: center; gap: 20px; }
+        .bg-term { font-size: 18px; width: 160px; flex-shrink: 0; }
+        .bg-options { display: flex; gap: 8px; }
+        .bg-btn {
+            font-size: 15px; padding: 8px 20px;
+            border: 1px solid var(--border); border-radius: 8px;
+            background: var(--surface); color: var(--text); cursor: pointer; white-space: nowrap;
+        }
+        .bg-btn:hover { background: var(--surface-hover); }
+        .bg-btn.selected { background: var(--action-bg); color: var(--action-fg); border-color: var(--action-bg); }
+        #bgContinueBtn { font-size: 18px; padding: 12px 32px; background: var(--action-bg); color: var(--action-fg); border-color: var(--action-bg); border-radius: 10px; }
+        #bgContinueBtn:hover:not(:disabled) { background: var(--action-hover); border-color: var(--action-hover); }
+
+        /* ---- Onboarding page ---- */
+        #onboardingPage { display: none; max-width: 620px; }
+        #onboardingPage h1 { font-size: 22px; margin: 0 0 16px; }
+        .ob-text { font-size: 15px; line-height: 1.65; color: var(--text); margin-bottom: 14px; }
+        .ob-text p { margin: 0 0 10px; }
+        .ob-text strong { color: var(--text); }
+        .ob-subtitle { font-size: 13px; color: var(--text-muted); margin: -10px 0 14px; }
+        #onboardingCanvasArea { overflow: hidden; }
+        .ob-chart-label { font-size: 13px; color: var(--text-muted); margin: 4px 0 16px; }
+        #onboardingCanvas { display: none; width: 100%; height: auto; margin: 10px auto 4px; }
+        #onboardingContinueBtn { display: block; margin-left: auto; margin-top: 20px; font-size: 15px; padding: 12px 32px;
+            background: var(--action-bg); color: var(--action-fg);
+            border-color: var(--action-bg); border-radius: 10px; }
+        #onboardingContinueBtn:hover { background: var(--action-hover); border-color: var(--action-hover); }
+        .ob-scale-table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 12px 0 18px; }
+        .ob-scale-table td, .ob-scale-table th { border: 1px solid var(--border-light); padding: 7px 12px; text-align: left; }
+        .ob-scale-table th { background: var(--surface-alt); font-weight: 600; }
+
+        /* ---- Trial page ---- */
+        #trialPage { display: none; }
+        .trial-topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            min-height: 24px;
+        }
+        .trial-counter { font-size: 15px; color: var(--text-faint); }
+        .trial-desc { font-size: 15px; color: var(--text-muted); }
+        .progress { height: 6px; border-radius: 999px; background: var(--progress-track); overflow: hidden; margin-bottom: 14px; }
+        .progress > div { height: 100%; background: var(--progress-fill); width: 0%; transition: width 0.2s; }
+
+        .chart-wrap { background: #ffffff; }
+        canvas { display: block; width: 100%; height: auto; margin-inline: auto; }
+
+        /* Question + rating */
+        .question { font-size: 20px; margin: 18px 0 12px; color: var(--text-muted); }
+        .rating-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+        .ratingBtn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            padding: 10px 24px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--surface);
+            justify-content: center;
+            cursor: pointer;
+            font-size: 24px;
+            line-height: 1.3;
+            text-align: center;
+        }
+        .ratingBtn:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--border); }
+        .ratingBtn:disabled { opacity: 0.45; cursor: default; }
+        .ratingBtn .num { font-size: 17px; font-weight: 700; color: var(--text-secondary); visibility: hidden; }
+        .ratingBtn .label { color: var(--text-secondary); }
+
+        /* Footer controls */
+        .trial-footer { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .trial-footer button { font-size: 12px; padding: 6px 12px; color: var(--text-faint); }
+
+        /* Debug */
+        details { margin-top: 14px; font-size: 16px; color: var(--text-faint); }
+        pre { white-space: pre-wrap; font-size: 16px; }
+
+        /* ---- Completion page ---- */
+        #completionPage { display: none; max-width: 620px; }
+        #completionPage h1 { font-size: 22px; margin: 0 0 10px; }
+        .completion-intro { font-size: 16px; color: var(--text-secondary); margin: 0 0 28px; line-height: 1.5; }
+        .completion-comment-prompt { font-size: 15px; color: var(--text); margin: 0 0 10px; }
+        #commentField {
+            width: 100%; box-sizing: border-box; font-family: inherit;
+            font-size: 14px; line-height: 1.5; padding: 10px 12px;
+            border: 1px solid var(--border); border-radius: 8px;
+            background: var(--surface); color: var(--text);
+            resize: vertical; min-height: 80px;
+        }
+        #commentField:focus { outline: none; border-color: var(--text-muted); }
+        .completion-comment-footer { display: flex; align-items: center; gap: 14px; margin-top: 10px; }
+        #commentStatus { font-size: 13px; color: var(--text-muted); }
+        .completion-actions { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .completion-actions button { font-size: 12px; padding: 6px 12px; color: var(--text-faint); }
+    </style>
+</head>
+<body>
+
+<!-- ===================== INTRO PAGE ===================== -->
+<div id="introPage">
+
+    <h1>Chart Perception Study</h1>
+    <div class="intro-body">
+        <p>
+            In this study you will be shown pairs of statistical charts and asked to judge
+            whether the two charts appear to come from <strong>different underlying sources</strong>.
+        </p>
+        <p>
+            Before the main study there is a short training section that explains
+            what you will be looking at. The whole study takes around 10–15 minutes.
+        </p>
+        <p>There are no right or wrong answers.</p>
+    </div>
+    <button id="introStartBtn">Start</button>
+</div>
+
+<!-- ===================== BACKGROUND PAGE ===================== -->
+<div id="backgroundPage">
+    <h1>A few quick questions</h1>
+    <p class="bg-intro">How familiar are you with these statistical graphics concepts?</p>
+    <div class="bg-grid" id="bgGrid">
+        <!-- rows injected by JS -->
+    </div>
+    <button id="bgContinueBtn">Continue</button>
+</div>
+
+<!-- ===================== ONBOARDING PAGE ===================== -->
+<div id="onboardingPage">
+    <div class="trial-topbar">
+        <span></span>
+        <span class="trial-counter" id="onboardingCounter"></span>
+    </div>
+    <h1 id="onboardingTitle"></h1>
+    <div class="ob-text" id="onboardingText1"></div>
+    <div class="ob-text" id="onboardingText2"></div>
+    <div id="onboardingCanvasArea">
+        <canvas id="onboardingCanvas"></canvas>
+        <div class="ob-chart-label" id="onboardingChartLabel"></div>
+    </div>
+    <button id="onboardingContinueBtn">Continue</button>
+</div>
+
+<!-- ===================== TRIAL PAGE ===================== -->
+
+<div id="trialPage">
+    <div class="trial-topbar">
+        <span class="trial-desc" id="chartDesc"></span>
+        <span class="trial-counter">
+            <span id="trialCounter"></span><span id="finishedMsg"></span>
+        </span>
+    </div>
+    <div class="progress"><div id="progFill"></div></div>
+
+    <div class="chart-wrap">
+        <canvas id="chart"></canvas>
+    </div>
+
+    <div class="question">How much evidence do these charts provide that A and B are genuinely different?</div>
+
+    <div class="rating-row">
+        <button class="ratingBtn" data-rating="1" disabled>
+            <span class="label">No<br/>evidence</span>
+        </button>
+        <button class="ratingBtn" data-rating="2" disabled>
+            <span class="label">Weak<br/>evidence</span>
+        </button>
+        <button class="ratingBtn" data-rating="3" disabled>
+            <span class="label">Moderate<br/>evidence</span>
+        </button>
+        <button class="ratingBtn" data-rating="4" disabled>
+            <span class="label">Strong<br/>evidence</span>
+        </button>
+    </div>
+
+    <div class="trial-footer" id="trialFooter">
+        <button id="downloadBtn" disabled>Download results</button>
+        <button id="downloadDesignBtn" disabled>Download design</button>
+        <button id="copyDataBtn" disabled>Copy data</button>
+        <button id="resetBtn">Reset session</button>
+    </div>
+
+    <details id="debugDetails">
+        <summary>Debug info</summary>
+        <pre id="debug"></pre>
+    </details>
+</div>
+
+<!-- ===================== COMPLETION PAGE ===================== -->
+<div id="completionPage">
+    <h1>Study Complete</h1>
+    <p class="completion-intro">Thank you for participating!</p>
+    <p class="completion-comment-prompt">If you have any comments or suggestions for future variations of this survey, you can enter them here.</p>
+    <textarea id="commentField" rows="4" placeholder="Optional comments…"></textarea>
+    <div class="completion-comment-footer">
+        <button id="submitCommentBtn">Submit comment</button>
+        <span id="commentStatus"></span>
+    </div>
+    <div class="completion-actions" id="completionActions">
+        <button id="completionDownloadBtn">Download results</button>
+        <button id="completionDownloadDesignBtn">Download design</button>
+        <button id="completionResetBtn">Reset session</button>
+    </div>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>
