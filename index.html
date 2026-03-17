@@ -82,23 +82,20 @@
         #introStartBtn { display: block; margin-left: auto; margin-top: 40px; font-size: 16px; padding: 12px 32px; background: var(--action-bg); color: var(--action-fg); border-color: var(--action-bg); border-radius: 10px; }
         #introStartBtn:hover { background: var(--action-hover); border-color: var(--action-hover); }
 
-        /* ---- Background page ---- */
-        #backgroundPage { display: none; max-width: 620px; }
-        #backgroundPage h1 { font-size: 22px; margin: 0 0 12px; }
-        .bg-intro { font-size: 18px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5; }
+        /* ---- Background questionnaire (used inside onboarding step) ---- */
         .bg-grid { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
         .bg-row { display: flex; align-items: center; gap: 20px; }
-        .bg-term { font-size: 18px; width: 160px; flex-shrink: 0; }
-        .bg-options { display: flex; gap: 8px; }
+        .bg-term { font-size: 18px; width: 200px; flex-shrink: 0; }
+        .bg-options { display: flex; gap: 8px; flex: 1; }
         .bg-btn {
+            flex: 1; text-align: center;
             font-size: 16px; padding: 8px 20px;
             border: 1px solid var(--border); border-radius: 8px;
             background: var(--surface); color: var(--text); cursor: pointer; white-space: nowrap;
+            user-select: none;
         }
         .bg-btn:hover { background: var(--surface-hover); }
         .bg-btn.selected { background: var(--action-bg); color: var(--action-fg); border-color: var(--action-bg); }
-        #bgContinueBtn { font-size: 18px; padding: 12px 32px; background: var(--action-bg); color: var(--action-fg); border-color: var(--action-bg); border-radius: 10px; }
-        #bgContinueBtn:hover:not(:disabled) { background: var(--action-hover); border-color: var(--action-hover); }
 
         /* ---- Onboarding page ---- */
         #onboardingPage { display: none; max-width: 620px; }
@@ -213,16 +210,6 @@
         <canvas class="introThumb"></canvas>
     </div>
     <button id="introStartBtn">Start</button>
-</div>
-
-<!-- ===================== BACKGROUND PAGE ===================== -->
-<div id="backgroundPage">
-    <h1>A few quick questions</h1>
-    <p class="bg-intro">How familiar are you with these statistical graphics concepts?</p>
-    <div class="bg-grid" id="bgGrid">
-        <!-- rows injected by JS -->
-    </div>
-    <button id="bgContinueBtn">Continue</button>
 </div>
 
 <!-- ===================== ONBOARDING PAGE ===================== -->

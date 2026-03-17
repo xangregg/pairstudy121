@@ -48,15 +48,17 @@ function postSession() {
         participant_id: session.participantId,
         started_at: session.startedAtISO,
         participant_group: params.get("group") ?? null,
-        // background questionnaire (1=Unfamiliar, 2=Heard of it, 3=Understand it)
-        bg_mean: bg.mean ?? null,
-        bg_sd: bg.sd ?? null,
-        bg_median: bg.median ?? null,
-        bg_quartile: bg.quartile ?? null,
-        bg_box_plot: bg.boxPlot ?? null,
-        bg_violin_plot: bg.violinPlot ?? null,
-        bg_density: bg.density ?? null,
-        bg_sampling: bg.sampling ?? null,
+        // background questionnaire — frequency (1=Rarely, 2=Occasionally, 3=Regularly)
+        bg_viz_frequency:   bg.vizFrequency   ?? null,
+        bg_chart_frequency: bg.chartFrequency ?? null,
+        // background questionnaire — familiarity (1=Unfamiliar, 2=Somewhat familiar, 3=Very familiar)
+        bg_mean:         bg.mean         ?? null,
+        bg_sd:           bg.sd           ?? null,
+        bg_median:       bg.median       ?? null,
+        bg_quartile:     bg.quartile     ?? null,
+        bg_box_plot:     bg.boxPlot      ?? null,
+        bg_sampling:     bg.sampling     ?? null,
+        bg_significance: bg.significance ?? null,
         // between-subjects design factors
         orientation: session.design.orientation,
         jitter: session.design.jitter,
@@ -88,6 +90,42 @@ function postSession() {
     }).catch(() => {
     });
 }
+
+/** ---------- Background questionnaire ---------- **/
+const BG_FREQ_OPTIONS = [
+    { value: 1, label: "Rarely" },
+    { value: 2, label: "Occasionally" },
+    { value: 3, label: "Regularly" },
+];
+const BG_FAM_OPTIONS = [
+    { value: 1, label: "Unfamiliar" },
+    { value: 2, label: "Somewhat" },
+    { value: 3, label: "Very familiar" },
+];
+const BG_SECTIONS = [
+    {
+        heading: "How often do you read...",
+        questions: [
+            { key: "vizFrequency",   label: "Bar charts / infographics" },
+            { key: "chartFrequency", label: "Statistical charts" },
+        ],
+        options: BG_FREQ_OPTIONS,
+    },
+    {
+        heading: "How familiar are you with...",
+        questions: [
+            { key: "mean",         label: "Mean" },
+            { key: "sd",           label: "Standard deviation" },
+            { key: "median",       label: "Median" },
+            { key: "quartile",     label: "Quartile" },
+            { key: "boxPlot",      label: "Box plot" },
+            { key: "sampling",     label: "Population sampling" },
+            { key: "significance", label: "Linear regression" },
+        ],
+        options: BG_FAM_OPTIONS,
+    },
+];
+const BG_QUESTIONS = BG_SECTIONS.flatMap(s => s.questions);
 
 /** ---------- Config ---------- **/
 const DEFAULT_TESTING = false;
@@ -144,7 +182,6 @@ const JITTER_CATALOG = ["random", "wilkinson", "beeswarm", "density random"];
 /** ---------- UI ---------- **/
 const UI = {
     introPage: document.getElementById("introPage"),
-    backgroundPage: document.getElementById("backgroundPage"),
     onboardingPage: document.getElementById("onboardingPage"),
     onboardingTitle: document.getElementById("onboardingTitle"),
     onboardingCounter: document.getElementById("onboardingCounter"),
@@ -176,7 +213,6 @@ const UI = {
     completionDownloadDesignBtn: document.getElementById("completionDownloadDesignBtn"),
     completionResetBtn: document.getElementById("completionResetBtn"),
 };
-// Note: backgroundPage/bgGrid and showBackground() are in HTML/JS but not used in the current flow (see ONBOARDING.md).
 
 let currentTrial = null;
 let trialStartPerf = null;
@@ -593,23 +629,16 @@ function buildTrial(trialIdx, cond) {
 /** ---------- View switching ---------- **/
 function showIntro() {
     UI.introPage.style.display = "";
-    UI.backgroundPage.style.display = "none";
+
     UI.onboardingPage.style.display = "none";
     UI.trialPage.style.display = "none";
     UI.completionPage.style.display = "none";
 }
 
-function showBackground() {
-    UI.introPage.style.display = "none";
-    UI.backgroundPage.style.display = "block";
-    UI.onboardingPage.style.display = "none";
-    UI.trialPage.style.display = "none";
-    UI.completionPage.style.display = "none";
-}
 
 function showOnboarding() {
     UI.introPage.style.display = "none";
-    UI.backgroundPage.style.display = "none";
+
     UI.onboardingPage.style.display = "block";
     UI.trialPage.style.display = "none";
     UI.completionPage.style.display = "none";
@@ -618,7 +647,7 @@ function showOnboarding() {
 
 function showTrial() {
     UI.introPage.style.display = "none";
-    UI.backgroundPage.style.display = "none";
+
     UI.onboardingPage.style.display = "none";
     UI.trialPage.style.display = "block";
     UI.completionPage.style.display = "none";
@@ -626,7 +655,7 @@ function showTrial() {
 
 function showCompletion() {
     UI.introPage.style.display = "none";
-    UI.backgroundPage.style.display = "none";
+
     UI.onboardingPage.style.display = "none";
     UI.trialPage.style.display = "none";
     UI.completionPage.style.display = "block";
@@ -643,6 +672,7 @@ function getOnboardingSteps() {
     const sortedIndices = Array.from({length: n}, (_, i) => i)
         .sort((a, b) => firstOccurrence[a] - firstOccurrence[b]);
     return [
+        {type: "background"},
         {type: "sampling2"},
         {type: "sampling3"},
         {type: "chartTypeIntro"},
@@ -762,15 +792,20 @@ function renderOnboardingStep() {
     UI.onboardingChartLabel.textContent = "";
     UI.onboardingCanvas.style.display = "none";
     UI.onboardingThumbnails.style.display = "none";
+    UI.onboardingContinueBtn.disabled = false;
 
-    // Reserve fixed heights for chart-type section so the Continue button
-    // stays at the same vertical position across all chart-type pages.
+    // Reserve fixed heights within each section so the canvas and Continue button
+    // stay at the same vertical position across pages within a section.
     const isChartTypeSection = step.type === "chartTypeIntro" || step.type === "chartType";
+    const isSamplingSection  = step.type === "sampling2"      || step.type === "sampling3";
     const horiz = currentOrientation() === "horizontal";
     UI.onboardingText1.style.minHeight = isChartTypeSection ? "90px" : "";
-    UI.onboardingText2.style.minHeight = isChartTypeSection ? "36px" : "";
+    UI.onboardingText2.style.minHeight = isChartTypeSection ? "36px"
+                                       : isSamplingSection  ? "100px" : "";
     UI.onboardingCanvasArea.style.minHeight = isChartTypeSection
-        ? (horiz ? WIDTH_2_UP_TRAINING : HEIGHT_2_UP_TRAINING) + "px" : "";
+        ? (horiz ? WIDTH_2_UP_TRAINING : HEIGHT_2_UP_TRAINING) + "px"
+        : isSamplingSection
+        ? (horiz ? WIDTH_4_UP_TRAINING : HEIGHT_4_UP_TRAINING) + "px" : "";
 
     if (step.type === "sampling2") {
         UI.onboardingTitle.textContent = "Understanding Sampling";
@@ -791,6 +826,7 @@ function renderOnboardingStep() {
         UI.onboardingText2.innerHTML =
             `<p class="ob-section-head">Different Sources, Different Samples</p>
             <p>Below are two different sources, each with one random sample.
+            Sources can differ in location or shape.
             Source 2 has higher values and less spread.
             Notice how samples A and B look different from each other.</p>`;
         const {panel3} = getOnboardingPanels();
@@ -839,6 +875,49 @@ function renderOnboardingStep() {
             </table>
             <p>There are no right or wrong answers. Go with your first impression.</p>`;
     }
+    else if (step.type === "background") {
+        UI.onboardingTitle.textContent = "About You";
+        UI.onboardingText1.innerHTML =
+            `<p>Before we start, a few quick questions about your prior knowledge.</p>` +
+            BG_SECTIONS.map(sec => `
+            <p class="ob-section-head">${sec.heading}</p>
+            <div class="bg-grid">
+                ${sec.questions.map(q => `
+                <div class="bg-row">
+                    <span class="bg-term">${q.label}</span>
+                    <div class="bg-options">
+                        ${sec.options.map(o =>
+                            `<button class="bg-btn" data-key="${q.key}" data-value="${o.value}">${o.label}</button>`
+                        ).join("")}
+                    </div>
+                </div>`).join("")}
+            </div>`).join("");
+        // Restore any previously saved selections
+        const bg = session.background ?? {};
+        for (const [key, val] of Object.entries(bg)) {
+            const btn = UI.onboardingText1.querySelector(`.bg-btn[data-key="${key}"][data-value="${val}"]`);
+            if (btn) btn.classList.add("selected");
+        }
+        // Click handlers — save each selection immediately
+        UI.onboardingText1.querySelectorAll(".bg-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const {key, value} = btn.dataset;
+                UI.onboardingText1.querySelectorAll(`.bg-btn[data-key="${key}"]`)
+                    .forEach(b => b.classList.remove("selected"));
+                btn.classList.add("selected");
+                if (!session.background) session.background = {};
+                session.background[key] = parseInt(value);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+                updateBgContinueBtn();
+            });
+        });
+        updateBgContinueBtn();
+    }
+}
+
+function updateBgContinueBtn() {
+    const bg = session.background ?? {};
+    UI.onboardingContinueBtn.disabled = !BG_QUESTIONS.every(q => bg[q.key] != null);
 }
 
 function advanceOnboarding() {
