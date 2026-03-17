@@ -150,6 +150,7 @@ const UI = {
     onboardingText2: document.getElementById("onboardingText2"),
     onboardingCanvasArea: document.getElementById("onboardingCanvasArea"),
     onboardingCanvas: document.getElementById("onboardingCanvas"),
+    onboardingThumbnails: document.getElementById("onboardingThumbnails"),
     onboardingChartLabel: document.getElementById("onboardingChartLabel"),
     onboardingContinueBtn: document.getElementById("onboardingContinueBtn"),
     trialPage: document.getElementById("trialPage"),
@@ -653,7 +654,7 @@ let _onboardingPanels = null;
 
 function getOnboardingPanels() {
     if (_onboardingPanels) return _onboardingPanels;
-    const rng = mulberry32(0x4F4E424F); // "ONBO" — fixed seed
+    const rng = mulberry32(0x4F4E4241); // fixed seed chosen so the similar/different training are true
     const N_SRC = 500;
 
     // Page 2: one source, three 50-point samples from the same distribution
@@ -739,8 +740,8 @@ function renderChartTypeCanvas(ct) {
 
 const SAMPLING_BLURB = `<p>The charts you'll be comparing are each made from
     <strong>50 data values sampled from a larger source</strong>.
-    Two samples from the same source will look similar but not identical —
-    differences due to random chance are normal, and occasional stray values can appear by chance.</p>`;
+    Two samples from the same source will look similar but not identical.
+    Differences due to random chance are normal, and occasional stray values can appear by chance.</p>`;
 
 // Look up the live catalog variant so explanation functions survive localStorage round-trips.
 function getLiveCatalogOptions(ct) {
@@ -754,9 +755,11 @@ function renderOnboardingStep() {
 
     UI.onboardingCounter.textContent = `Step ${session.onboardingStep + 1} of ${steps.length}`;
     UI.onboardingText1.innerHTML = "";
+    UI.onboardingText1.classList.remove("muted");
     UI.onboardingText2.innerHTML = "";
     UI.onboardingChartLabel.textContent = "";
     UI.onboardingCanvas.style.display = "none";
+    UI.onboardingThumbnails.style.display = "none";
 
     // Reserve fixed heights for chart-type section so the Continue button
     // stays at the same vertical position across all chart-type pages.
@@ -768,22 +771,26 @@ function renderOnboardingStep() {
         ? (horiz ? WIDTH_2_UP_TRAINING : HEIGHT_2_UP_TRAINING) + "px" : "";
 
     if (step.type === "sampling2") {
-        UI.onboardingTitle.textContent = "Understanding the Charts";
+        UI.onboardingTitle.textContent = "Understanding Sampling";
         UI.onboardingText1.innerHTML = SAMPLING_BLURB;
+        UI.onboardingText1.classList.remove("muted");
         UI.onboardingText2.innerHTML =
-            `<p>Below is one source (500 values) and three random 50-value samples from it (A, B, C).
+            `<p class="ob-section-head">Same Source, Similar Samples</p>
+            <p>Below is one source (500 values) and three random 50-value samples from it (A, B, C).
             The samples resemble the source and each other, but each looks slightly different.</p>`;
         const {panel2} = getOnboardingPanels();
         renderSamplingCanvas(panel2, ["Source", "A", "B", "C"]);
 
     }
     else if (step.type === "sampling3") {
-        UI.onboardingTitle.textContent = "Different Sources, Different Samples";
+        UI.onboardingTitle.textContent = "Understanding Sampling";
         UI.onboardingText1.innerHTML = SAMPLING_BLURB;
+        UI.onboardingText1.classList.add("muted");
         UI.onboardingText2.innerHTML =
-            `<p>Below are two different sources, each with one random sample.
+            `<p class="ob-section-head">Different Sources, Different Samples</p>
+            <p>Below are two different sources, each with one random sample.
             Source 2 has higher values and less spread.
-            Notice how samples A and B look clearly different from each other.</p>`;
+            Notice how samples A and B look different from each other.</p>`;
         const {panel3} = getOnboardingPanels();
         renderSamplingCanvas(panel3, ["Source 1", "A", "Source 2", "B"]);
 
@@ -794,19 +801,21 @@ function renderOnboardingStep() {
         UI.onboardingText1.innerHTML =
             `<p>Over the course of the study you'll see <strong>${n} chart ${n === 1 ? "type" : "types"}</strong>,
             briefly explained on the following pages.
-            It's not critical to remember every detail —
+            It's not important to remember every detail —
             each question will include a short reminder.</p>
             <p>Your task is always the same: judge whether two charts appear to come from different sources.</p>`;
+        UI.onboardingThumbnails.style.display = "flex";
+        renderChartTypeThumbs(UI.onboardingThumbnails.querySelectorAll(".onboardingThumb"));
 
     }
     else if (step.type === "chartType") {
         const ct = session.design.selectedChartTypes[step.index];
         const opts = getLiveCatalogOptions(ct);
-        UI.onboardingTitle.textContent = opts.description;
+        UI.onboardingTitle.textContent = `How to read: ${opts.description}`;
         const expl = typeof opts.explanation === "function" ? opts.explanation() : (opts.explanation ?? "");
         UI.onboardingText1.innerHTML = `<p>${expl}</p>`;
         UI.onboardingText2.innerHTML =
-            `<p>Below is an example pair — both samples come from the same source.</p>`;
+            `<p>Below is an example pair where both samples come from the same source.</p>`;
         renderChartTypeCanvas(ct);
         UI.onboardingChartLabel.textContent = opts.description;
 
@@ -820,10 +829,10 @@ function renderOnboardingStep() {
             <table class="ob-scale-table">
                 <thead><tr><th>Rating</th><th>Meaning</th></tr></thead>
                 <tbody>
-                    <tr><td><strong>No evidence</strong></td><td>Any difference is likely just chance</td></tr>
-                    <tr><td><strong>Weak evidence</strong></td><td>A hint of a difference, but could still be chance</td></tr>
-                    <tr><td><strong>Moderate evidence</strong></td><td>Leaning toward a real difference</td></tr>
-                    <tr><td><strong>Strong evidence</strong></td><td>Likely a real difference</td></tr>
+                    <tr><td><strong>No<br/>evidence</strong></td><td>The charts look like they could easily come from the same source. Any visible difference is well within what random sampling alone would produce.</td></tr>
+                    <tr><td><strong>Weak<br/>evidence</strong></td><td>There's a slight suggestion of a difference — maybe a small shift in center or spread — but it could plausibly be due to chance.</td></tr>
+                    <tr><td><strong>Moderate<br/>evidence</strong></td><td>The charts look noticeably different in some way (center, spread, or shape), but there's still meaningful uncertainty about whether it's real.</td></tr>
+                    <tr><td><strong>Strong<br/>evidence</strong></td><td>The charts look clearly different. It would be surprising if random sampling alone produced this much of a difference.</td></tr>
                 </tbody>
             </table>
             <p>There are no right or wrong answers. Go with your first impression.</p>`;
@@ -886,10 +895,9 @@ function ensureDesign() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
 }
 
-function renderIntroThumbnails() {
+function renderChartTypeThumbs(thumbs) {
     const steps = getOnboardingSteps();
     const chartSteps = steps.filter(s => s.type === "chartType");
-    const thumbs = document.querySelectorAll(".introThumb");
     const thumbW = 140, thumbH = 200;
     chartSteps.forEach((step, i) => {
         if (i >= thumbs.length) return;
@@ -909,6 +917,10 @@ function renderIntroThumbnails() {
             mn - span * 0.12, mx + span * 0.12,
             { violinScale: 7, ...opts }, "vertical", session.design.jitter);
     });
+}
+
+function renderIntroThumbnails() {
+    renderChartTypeThumbs(document.querySelectorAll(".introThumb"));
 }
 
 function beginSession() {

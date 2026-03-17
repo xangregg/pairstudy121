@@ -61,22 +61,25 @@
             background: var(--surface);
             color: var(--text);
             cursor: pointer;
-            font-size: 14px;
+            font-size: 16px;
+            user-select: none;
         }
         button:hover:not(:disabled) { background: var(--surface-hover); }
         button:disabled { opacity: 0.45; cursor: default; }
 
         /* ---- Intro page ---- */
         #introPage { max-width: 620px; }
-        .intro-welcome { font-size: 30px; font-weight: 300; color: var(--text-secondary); margin: 0 0 4px; letter-spacing: 0.01em; }
+        .intro-welcome { font-size: 30px; font-weight: 400; color: var(--text-secondary); margin: 0 0 25px; letter-spacing: 0.01em; }
         #introPage h1 { font-size: 26px; margin: 0 0 8px; }
-        .intro-tagline { font-size: 16px; font-style: italic; color: var(--text-muted); margin: 0 0 22px; }
+        .intro-tagline { font-size: 16px; font-style: italic; color: var(--text-muted); margin: 0 0 25px; }
         .intro-body { font-size: 16px; line-height: 1.65; color: var(--text); }
         .intro-body p { margin: 0 0 12px; }
         .intro-body strong { color: var(--text); }
-        #introThumbnails { display: flex; gap: 10px; margin: 24px 0 4px; }
+        #introThumbnails { display: flex; gap: 10px; margin: 40px 0 4px; }
         .introThumb { flex: 1; min-width: 0; display: block; width: 100%; height: auto; background: #ffffff; border-radius: 6px; }
-        #introStartBtn { display: block; margin-left: auto; margin-top: 20px; font-size: 15px; padding: 12px 32px; background: var(--action-bg); color: var(--action-fg); border-color: var(--action-bg); border-radius: 10px; }
+        #onboardingThumbnails { display: flex; }
+        .onboardingThumb { flex: 1; min-width: 0; display: block; width: 100%; height: auto; background: #ffffff; border-radius: 6px; }
+        #introStartBtn { display: block; margin-left: auto; margin-top: 40px; font-size: 16px; padding: 12px 32px; background: var(--action-bg); color: var(--action-fg); border-color: var(--action-bg); border-radius: 10px; }
         #introStartBtn:hover { background: var(--action-hover); border-color: var(--action-hover); }
 
         /* ---- Background page ---- */
@@ -88,7 +91,7 @@
         .bg-term { font-size: 18px; width: 160px; flex-shrink: 0; }
         .bg-options { display: flex; gap: 8px; }
         .bg-btn {
-            font-size: 15px; padding: 8px 20px;
+            font-size: 16px; padding: 8px 20px;
             border: 1px solid var(--border); border-radius: 8px;
             background: var(--surface); color: var(--text); cursor: pointer; white-space: nowrap;
         }
@@ -100,20 +103,24 @@
         /* ---- Onboarding page ---- */
         #onboardingPage { display: none; max-width: 620px; }
         #onboardingPage h1 { font-size: 22px; margin: 0 0 16px; }
-        .ob-text { font-size: 15px; line-height: 1.65; color: var(--text); margin-bottom: 14px; }
+        .ob-text { font-size: 16px; line-height: 1.65; color: var(--text); margin-bottom: 14px; }
         .ob-text p { margin: 0 0 10px; }
         .ob-text strong { color: var(--text); }
+        .ob-text.muted { color: var(--text-faint); }
+        .ob-text.muted strong { color: var(--text-faint); }
+        .ob-section-head { font-size: 18px; font-weight: 600; color: var(--text); margin: 4px 0 10px; }
         .ob-subtitle { font-size: 13px; color: var(--text-muted); margin: -10px 0 14px; }
         #onboardingCanvasArea { overflow: hidden; }
-        .ob-chart-label { font-size: 13px; color: var(--text-muted); margin: 4px 0 16px; }
+        .ob-chart-label { font-size: 16px; color: var(--text-muted); margin: 4px 0 16px; }
         #onboardingCanvas { display: none; width: 100%; height: auto; margin: 10px auto 4px; }
-        #onboardingContinueBtn { display: block; margin-left: auto; margin-top: 20px; font-size: 15px; padding: 12px 32px;
+        #onboardingContinueBtn { display: block; margin-left: auto; margin-top: 20px; font-size: 16px; padding: 12px 32px;
             background: var(--action-bg); color: var(--action-fg);
             border-color: var(--action-bg); border-radius: 10px; }
         #onboardingContinueBtn:hover { background: var(--action-hover); border-color: var(--action-hover); }
         .ob-scale-table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 12px 0 18px; }
-        .ob-scale-table td, .ob-scale-table th { border: 1px solid var(--border-light); padding: 7px 12px; text-align: left; }
-        .ob-scale-table th { background: var(--surface-alt); font-weight: 600; }
+        .ob-scale-table td, .ob-scale-table th { font-size: 16px; border: 1px solid var(--border-light); padding: 7px 12px; text-align: left; }
+        .ob-scale-table th { font-size: 16px; background: var(--surface-alt); font-weight: 600; }
+        .ob-scale-table td:first-child { text-align: center; white-space: nowrap; }
 
         /* ---- Trial page ---- */
         #trialPage { display: none; }
@@ -124,8 +131,8 @@
             margin-bottom: 12px;
             min-height: 24px;
         }
-        .trial-counter { font-size: 15px; color: var(--text-faint); }
-        .trial-desc { font-size: 15px; color: var(--text-muted); }
+        .trial-counter { font-size: 16px; color: var(--text-faint); }
+        .trial-desc { font-size: 16px; color: var(--text-muted); }
         .progress { height: 6px; border-radius: 999px; background: var(--progress-track); overflow: hidden; margin-bottom: 14px; }
         .progress > div { height: 100%; background: var(--progress-fill); width: 0%; transition: width 0.2s; }
 
@@ -171,19 +178,19 @@
         #completionPage { display: none; max-width: 620px; }
         #completionPage h1 { font-size: 22px; margin: 0 0 10px; }
         .completion-intro { font-size: 16px; color: var(--text-secondary); margin: 0 0 28px; line-height: 1.5; }
-        .completion-comment-prompt { font-size: 15px; color: var(--text); margin: 0 0 10px; }
+        .completion-comment-prompt { font-size: 16px; color: var(--text); margin: 0 0 10px; }
         #commentField {
             width: 100%; box-sizing: border-box; font-family: inherit;
-            font-size: 14px; line-height: 1.5; padding: 10px 12px;
+            font-size: 16px; line-height: 1.5; padding: 10px 12px;
             border: 1px solid var(--border); border-radius: 8px;
             background: var(--surface); color: var(--text);
             resize: vertical; min-height: 80px;
         }
         #commentField:focus { outline: none; border-color: var(--text-muted); }
         .completion-comment-footer { display: flex; align-items: center; gap: 14px; margin-top: 10px; }
-        #commentStatus { font-size: 13px; color: var(--text-muted); }
+        #commentStatus { font-size: 16px; color: var(--text-muted); }
         .completion-actions { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-        .completion-actions button { font-size: 12px; padding: 6px 12px; color: var(--text-faint); }
+        .completion-actions button { font-size: 16px; padding: 6px 12px; color: var(--text-faint); }
     </style>
 </head>
 <body>
@@ -195,7 +202,7 @@
     <p class="intro-tagline">How well do statistical charts reveal differences between groups?</p>
     <div class="intro-body">
         <p>In this study you will be shown pairs of statistical charts and asked to judge
-            whether the two charts appear to come from <strong>different underlying sources</strong>.</p>
+            whether the two charts appear to come from <strong>different underlying sources</strong> or not.</p>
         <p>There is a short training section before the main study.
             The whole study takes around 10–15 minutes, and there are <strong>no right or wrong answers</strong>.</p>
     </div>
@@ -229,6 +236,12 @@
     <div class="ob-text" id="onboardingText2"></div>
     <div id="onboardingCanvasArea">
         <canvas id="onboardingCanvas"></canvas>
+        <div id="onboardingThumbnails" style="display:none; gap: 10px; margin: 10px 0 4px;">
+            <canvas class="onboardingThumb"></canvas>
+            <canvas class="onboardingThumb"></canvas>
+            <canvas class="onboardingThumb"></canvas>
+            <canvas class="onboardingThumb"></canvas>
+        </div>
         <div class="ob-chart-label" id="onboardingChartLabel"></div>
     </div>
     <button id="onboardingContinueBtn">Continue</button>
