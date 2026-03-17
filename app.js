@@ -75,6 +75,7 @@ function postSession() {
         viewport_w: window.innerWidth,
         viewport_h: window.innerHeight,
     };
+    if (NOSUBMIT) return;
     fetch(`${SUPA_URL}/rest/v1/sessions`, {
         method: "POST",
         headers: {
@@ -94,6 +95,7 @@ const params = new URLSearchParams(window.location.search);
 const TESTING = params.has("test")
     ? params.get("test") !== "false"
     : DEFAULT_TESTING;
+const NOSUBMIT = params.has("nosubmit");
 
 const N_CHART_TYPES = TESTING ? Infinity : 4;
 const N_VARIANT_TYPES = TESTING ? Infinity : 1;
@@ -967,12 +969,13 @@ function nextTrial() {
 
 function finishStudy() {
     session.finishedAtISO = new Date().toISOString();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    localStorage.removeItem(STORAGE_KEY);  // clear so next visitor starts fresh
     setRatingEnabled(false);
     showCompletion();
 }
 
 function postComment(text) {
+    if (NOSUBMIT) return;
     fetch(`${SUPA_URL}/rest/v1/comments`, {
         method: "POST",
         headers: {
