@@ -143,7 +143,7 @@ const distReps = TESTING
     ? {normal: 3, lognormal: 1, binomial: 1}
     : {normal: 15, lognormal: 5, binomial: 5};
 
-const RATING_DELAY_MS = 250;   // ms before rating buttons activate
+const RATING_DELAY_MS = 500;   // ms before rating buttons activate
 
 /** ---------- Session storage ---------- **/
 const STORAGE_KEY = "single_panel_study_v15";
@@ -799,7 +799,7 @@ function renderOnboardingStep() {
     const isChartTypeSection = step.type === "chartTypeIntro" || step.type === "chartType";
     const isSamplingSection  = step.type === "sampling2"      || step.type === "sampling3";
     const horiz = currentOrientation() === "horizontal";
-    UI.onboardingText1.style.minHeight = isChartTypeSection ? "90px" : "";
+    UI.onboardingText1.style.minHeight = isChartTypeSection ? "100px" : "";
     UI.onboardingText2.style.minHeight = isChartTypeSection ? "36px"
                                        : isSamplingSection  ? "100px" : "";
     UI.onboardingCanvasArea.style.minHeight = isChartTypeSection
@@ -844,7 +844,6 @@ function renderOnboardingStep() {
             <p>Your task is always the same: judge whether two charts appear to come from different sources.</p>`;
         UI.onboardingThumbnails.style.display = "flex";
         renderChartTypeThumbs(UI.onboardingThumbnails.querySelectorAll(".onboardingThumb"));
-
     }
     else if (step.type === "chartType") {
         const ct = session.design.selectedChartTypes[step.index];
@@ -856,7 +855,6 @@ function renderOnboardingStep() {
             `<p>Below is an example pair where both samples come from the same source.</p>`;
         renderChartTypeCanvas(ct);
         UI.onboardingChartLabel.textContent = opts.description;
-
     }
     else if (step.type === "responseScale") {
         const total = session.design.conditions.length;
@@ -1039,8 +1037,13 @@ function nextTrial() {
     renderTrial(currentTrial);
     trialStartPerf = performance.now();
     UI.copyDataBtn.disabled = false;
+    // disable buttons briefly to avoid accidental double/quick clicks
     setRatingEnabled(false);
     setTimeout(() => setRatingEnabled(true), RATING_DELAY_MS);
+    // don't show initial hover in an effort to reduce anchoring on one's previous choice
+    document.body.classList.add("inhibit-hover");
+    document.addEventListener("mousemove",
+        () => document.body.classList.remove("inhibit-hover"), {once: true});
     updateProgress();
     UI.chartDesc.textContent = cond.chartOptions.description ?? "";
     UI.finishedMsg.textContent = "";
