@@ -8,7 +8,7 @@ import {mulberry32, hashStringToUint32, randomNormal, shuffleInPlace} from "./ut
 const SUPA_URL = "https://pidcedqlfqtvfqncaysc.supabase.co";
 const SUPA_KEY = "sb_publishable_Xfi2G-RyjGXc8PhGOu2YWA_iQfbnpyE"; // publishable key
 
-function postResponse(trial, rating, rtMs, finishedAt = null) {
+function postResponse(trial, rating, rtMs, finishedAt = null, stats = null) {
     const cond = trial.condition;
     const row = {
         participant_id: session.participantId,
@@ -29,6 +29,13 @@ function postResponse(trial, rating, rtMs, finishedAt = null) {
         viewport_h: window.innerHeight,
         finished_at: finishedAt,
     };
+    if (stats) {
+        row.a_mean = stats.a.mean; row.a_sd = stats.a.sd;
+        row.a_min = stats.a.min; row.a_q1 = stats.a.q1; row.a_med = stats.a.med; row.a_q3 = stats.a.q3; row.a_max = stats.a.max;
+        row.b_mean = stats.b.mean; row.b_sd = stats.b.sd;
+        row.b_min = stats.b.min; row.b_q1 = stats.b.q1; row.b_med = stats.b.med; row.b_q3 = stats.b.q3; row.b_max = stats.b.max;
+    }
+    if (NOSUBMIT) return;
     fetch(`${SUPA_URL}/rest/v1/responses`, {
         method: "POST",
         headers: {
@@ -133,7 +140,8 @@ const params = new URLSearchParams(window.location.search);
 const TESTING = params.has("test")
     ? params.get("test") !== "false"
     : DEFAULT_TESTING;
-const NOSUBMIT = params.has("nosubmit");
+const SEEDREVIEW_DIST = params.get("seedreview"); // e.g. ?seedreview=lognormal
+const NOSUBMIT = params.has("nosubmit") || !!SEEDREVIEW_DIST;
 
 const N_CHART_TYPES = TESTING ? Infinity : 4;
 const N_VARIANT_TYPES = TESTING ? Infinity : 1;
@@ -220,12 +228,7 @@ let trialStartPerf = null;
 /** ---------- Base data generation ---------- **/
 const N_PER_GROUP = 50;
 
-const DATA_SEEDS = [
-    // excluded because lognormal data looks too much like outlier effect: 0x11111, 0x11112, ..., 0x22222
-    0x11123, 0x22223, 0x33333, 0x44444, 0x55555, 0x66666,
-    0x77777, 0x88888, 0x99999, 0xAAAAA, 0xBBBBC, 0xCCCCC,
-    0x777777, 0x888888, 0x999999, 0xAAAAAA, 0xBBBBBB, 0xCCCCCC,
-];
+// DATA_SEEDS is computed after generateBasePanel (defined below)
 
 // Orientation-aware direction words — must be called at render time, not at catalog init time.
 // function names match vertical chart orientation
@@ -402,6 +405,69 @@ function generateBasePanel(dist, seed, effect = {type: "null"}, effectGroup = 1)
     }
     return {y, group};
 }
+
+// Auto-screen candidate seeds: reject if groups differ too much under null effect.
+// extremes: max/min difference as a fraction of combined range (range-based; captures tail placement).
+// meanD: Cohen's d for mean difference (distribution-agnostic; ~equivalent to Welch's t > 1.25, p < 0.21).
+const SEED_THRESHOLDS = {
+    normal:    { extremes: 0.30 }, // 3 rejections
+    lognormal: { extremes: 0.40 }, // 13 rejections
+};
+const MEAN_D_THRESHOLD = 0.25; // reject if Cohen's d for group means exceeds this; 38 additional rejections
+
+function isGoodSeed(seed) {
+    for (const [dist, {extremes}] of Object.entries(SEED_THRESHOLDS)) {
+        const panel = generateBasePanel(dist, seed, {type: "null"}, 0);
+        const A = [], B = [];
+        for (let i = 0; i < panel.y.length; i++)
+            (panel.group[i] === 0 ? A : B).push(panel.y[i]);
+        const yMin = Math.min(...panel.y), yMax = Math.max(...panel.y);
+        const range = yMax - yMin || 1;
+        if (Math.abs(Math.max(...A) - Math.max(...B)) / range > extremes) return false;
+        if (Math.abs(Math.min(...A) - Math.min(...B)) / range > extremes) return false;
+        const meanA = A.reduce((s, v) => s + v, 0) / A.length;
+        const meanB = B.reduce((s, v) => s + v, 0) / B.length;
+        const varA = A.reduce((s, v) => s + (v - meanA) ** 2, 0) / (A.length - 1);
+        const varB = B.reduce((s, v) => s + (v - meanB) ** 2, 0) / (B.length - 1);
+        const pooledSD = Math.sqrt((varA + varB) / 2) || 1;
+        if (Math.abs(meanA - meanB) / pooledSD > MEAN_D_THRESHOLD) return false;
+    }
+    return true;
+}
+
+// Compute per-group descriptive statistics from a panel for recording alongside ratings.
+function groupStats(panel) {
+    const A = [], B = [];
+    for (let i = 0; i < panel.y.length; i++)
+        (panel.group[i] === 0 ? A : B).push(panel.y[i]);
+    function stats(arr) {
+        const n = arr.length;
+        const sorted = [...arr].sort((a, b) => a - b);
+        const mean = arr.reduce((s, v) => s + v, 0) / n;
+        const sd = Math.sqrt(arr.reduce((s, v) => s + (v - mean) ** 2, 0) / n);
+        const q = p => {
+            const pos = p * (n - 1), lo = Math.floor(pos), hi = Math.ceil(pos);
+            return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+        };
+        return { mean, sd, min: sorted[0], q1: q(0.25), med: q(0.50), q3: q(0.75), max: sorted[n - 1] };
+    }
+    return { a: stats(A), b: stats(B) };
+}
+
+// Compute 100 seeds of the form i*10^5 (skipping multiples of 10), auto-screened.
+const DATA_SEEDS = (() => {
+    const seeds = [];
+    let rejected = 0;
+    for (let i = 101; seeds.length < 100; i++) {
+        if (i % 10 === 0) continue;
+        if (isGoodSeed(i * 100_000))
+            seeds.push(i * 100_000);
+        else rejected++;
+    }
+    if (SEEDREVIEW_DIST)
+        console.log(`DATA_SEEDS: ${seeds.length} accepted, ${rejected} rejected (${(rejected / (rejected + seeds.length) * 100).toFixed(1)}% rejection rate).`);
+    return seeds;
+})();
 
 /** ---------- Effect generators ---------- **/
 
@@ -914,6 +980,7 @@ function renderOnboardingStep() {
 }
 
 function updateBgContinueBtn() {
+    if (NOSUBMIT) return; // optional when not submitting
     const bg = session.background ?? {};
     UI.onboardingContinueBtn.disabled = !BG_QUESTIONS.every(q => bg[q.key] != null);
 }
@@ -1078,6 +1145,7 @@ function recordResponse(rating) {
     const rtMs = Math.round(performance.now() - trialStartPerf);
     const isLast = currentTrial.trialIdx + 1 >= session.design.conditions.length;
     const finishedAt = isLast ? new Date().toISOString() : null;
+    const stats = groupStats(currentTrial.panel);
     session.results.push({
         participantId: session.participantId,
         participantSeed: session.participantSeed,
@@ -1087,11 +1155,12 @@ function recordResponse(rating) {
         condition: currentTrial.condition,
         rating,   // 1..4
         rtMs,
-        viewport: {w: window.innerWidth, h: window.innerHeight}
+        viewport: {w: window.innerWidth, h: window.innerHeight},
+        groupStats: stats
     });
     session.trialIndex = currentTrial.trialIdx + 1;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-    postResponse(currentTrial, rating, rtMs, finishedAt);
+    postResponse(currentTrial, rating, rtMs, finishedAt, stats);
     setRatingEnabled(false);
     nextTrial();
 }
@@ -1205,16 +1274,41 @@ for (const b of UI.ratingBtns) {
     b.addEventListener("click", () => recordResponse(parseInt(b.dataset.rating, 10)));
 }
 
-// Hide diagnostic controls unless ?diagnostics=true
-if (params.get("diagnostics") !== "true") {
+// Hide diagnostic controls unless ?diagnostics=true or seed review mode
+if (params.get("diagnostics") !== "true" && !SEEDREVIEW_DIST) {
     for (const id of ["trialFooter", "debugDetails", "completionActions"]) {
         const el = document.getElementById(id);
         if (el) el.style.display = "none";
     }
 }
 
+if (SEEDREVIEW_DIST) {
+    // Seed review mode: one trial per DATA_SEED in order, fixed distribution, null effect, dot plot
+    localStorage.removeItem(STORAGE_KEY);
+    const dotOptions = CHART_TYPE_CATALOG.find(e => e.type === "dot").variants[0];
+    session = {
+        participantId: "seed-review",
+        participantSeed: 0,
+        startedAtISO: new Date().toISOString(),
+        trialIndex: 0,
+        results: [],
+        design: {
+            conditions: DATA_SEEDS.map(seed => ({
+                chartType: "dot", chartOptions: dotOptions,
+                dist: SEEDREVIEW_DIST, effect: {type: "null"},
+                dataSeed: seed, effectGroup: 0,
+            })),
+            selectedChartTypes: [{type: "dot", options: dotOptions}],
+            orientation: "vertical", jitter: "wilkinson",
+            distEffects: {}, distReps: {}, dataSeeds: DATA_SEEDS,
+        },
+    };
+    UI.downloadBtn.disabled = UI.downloadDesignBtn.disabled = false;
+    showTrial();
+    nextTrial();
+}
 // Resume from wherever the participant left off
-if (!session.startedAtISO) {
+else if (!session.startedAtISO) {
     ensureDesign();
     showIntro();
     renderIntroThumbnails();
