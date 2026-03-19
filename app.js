@@ -1,11 +1,11 @@
 // app.js
 
-import {renderChart} from "./renderers.js";
+import {renderChart, quantileSorted} from "./renderers.js";
 import {mulberry32, hashStringToUint32, randomNormal, shuffleInPlace} from "./utils.js";
 
 
 /** ---------- Supabase ---------- **/
-const SUPA_URL = "https://pidcedqlfqtvfqncaysc.supabase.co";
+const SUPA_URL = "https://pidcedqlfqtvfqncaysc.supabase.co";    // project url
 const SUPA_KEY = "sb_publishable_Xfi2G-RyjGXc8PhGOu2YWA_iQfbnpyE"; // publishable key
 
 function postResponse(trial, rating, rtMs, finishedAt = null, stats = null) {
@@ -65,7 +65,7 @@ function postSession() {
         bg_quartile:     bg.quartile     ?? null,
         bg_box_plot:     bg.boxPlot      ?? null,
         bg_sampling:     bg.sampling     ?? null,
-        bg_significance: bg.significance ?? null,
+        bg_significance: bg.linearRegression ?? null,
         // between-subjects design factors
         orientation: session.design.orientation,
         jitter: session.design.jitter,
@@ -127,7 +127,7 @@ const BG_SECTIONS = [
             { key: "quartile",     label: "Quartile" },
             { key: "boxPlot",      label: "Box plot" },
             { key: "sampling",     label: "Population sampling" },
-            { key: "significance", label: "Linear regression" },
+            { key: "linearRegression", label: "Linear regression" },
         ],
         options: BG_FAM_OPTIONS,
     },
@@ -152,6 +152,7 @@ const distReps = TESTING
     : {normal: 15, lognormal: 5, binomial: 5};
 
 const RATING_DELAY_MS = 500;   // ms before rating buttons activate
+const JITTER_CATALOG = ["random", "wilkinson", "beeswarm", "density random"];
 
 /** ---------- Session storage ---------- **/
 const STORAGE_KEY = "single_panel_study_v15";
@@ -183,9 +184,6 @@ function loadOrCreateSession() {
 }
 
 let session = loadOrCreateSession();
-
-/** ---------- Config ---------- **/
-const JITTER_CATALOG = ["random", "wilkinson", "beeswarm", "density random"];
 
 /** ---------- UI ---------- **/
 const UI = {
@@ -406,6 +404,17 @@ function generateBasePanel(dist, seed, effect = {type: "null"}, effectGroup = 1)
     return {y, group};
 }
 
+// Convert the internal {y, group} parallel arrays into the finalized panel format used everywhere
+// downstream: an array of per-group sorted value arrays. Sorting once here avoids repeated sorts
+// in boxStats, dot placement, KDE bandwidth, etc.
+function finalizePanel(y, group) {
+    const nGroups = Math.max(...group) + 1;
+    const groups = Array.from({length: nGroups}, () => []);
+    for (let i = 0; i < y.length; i++) groups[group[i]].push(y[i]);
+    for (const g of groups) g.sort((a, b) => a - b);
+    return {groups};
+}
+
 // Auto-screen candidate seeds: reject if groups differ too much under null effect.
 // extremes: max/min difference as a fraction of combined range (range-based; captures tail placement).
 // meanD: Cohen's d for mean difference (distribution-agnostic; ~equivalent to Welch's t > 1.25, p < 0.21).
@@ -437,21 +446,14 @@ function isGoodSeed(seed) {
 
 // Compute per-group descriptive statistics from a panel for recording alongside ratings.
 function groupStats(panel) {
-    const A = [], B = [];
-    for (let i = 0; i < panel.y.length; i++)
-        (panel.group[i] === 0 ? A : B).push(panel.y[i]);
-    function stats(arr) {
-        const n = arr.length;
-        const sorted = [...arr].sort((a, b) => a - b);
-        const mean = arr.reduce((s, v) => s + v, 0) / n;
-        const sd = Math.sqrt(arr.reduce((s, v) => s + (v - mean) ** 2, 0) / n);
-        const q = p => {
-            const pos = p * (n - 1), lo = Math.floor(pos), hi = Math.ceil(pos);
-            return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
-        };
-        return { mean, sd, min: sorted[0], q1: q(0.25), med: q(0.50), q3: q(0.75), max: sorted[n - 1] };
+    // groups are pre-sorted by finalizePanel; no sort needed here.
+    function stats(sorted) {
+        const n = sorted.length;
+        const mean = sorted.reduce((s, v) => s + v, 0) / n;
+        const sd = Math.sqrt(sorted.reduce((s, v) => s + (v - mean) ** 2, 0) / n);
+        return { mean, sd, min: sorted[0], q1: quantileSorted(sorted, 0.25), med: quantileSorted(sorted, 0.50), q3: quantileSorted(sorted, 0.75), max: sorted[n - 1] };
     }
-    return { a: stats(A), b: stats(B) };
+    return { a: stats(panel.groups[0]), b: stats(panel.groups[1]) };
 }
 
 // Compute 100 seeds of the form i*10^5 (skipping multiples of 10), auto-screened.
@@ -493,6 +495,7 @@ function applyEffect(panel, dist, effect, rng, effectGroup = 1) {
                 if (panel.group[i] === effectGroup) panel.y[i] *= k;
         }
         else {
+            // Power transform in log-space: exp(log(y)·k) = yᵏ, which scales log-normal σ by k.
             for (let i = 0; i < panel.y.length; i++)
                 if (panel.group[i] === effectGroup) panel.y[i] = Math.exp(Math.log(panel.y[i]) * k);
         }
@@ -513,16 +516,8 @@ function applyEffect(panel, dist, effect, rng, effectGroup = 1) {
             const z2 = randomNormal(rng);
             panel.y[i] = (delta * z1 + Math.sqrt(1 - delta * delta) * z2 - mu) / sigma;
         }
-        // Center on median to reduce location confound
-        // const affected = [];
-        // for (let i = 0; i < panel.y.length; i++)
-        //     if (panel.group[i] === effectGroup) affected.push(panel.y[i]);
-        // affected.sort((a, b) => a - b);
-        // const med = affected.length % 2 === 0
-        //     ? (affected[affected.length/2 - 1] + affected[affected.length/2]) / 2
-        //     : affected[Math.floor(affected.length/2)];
-        // for (let i = 0; i < panel.y.length; i++)
-        //     if (panel.group[i] === effectGroup) panel.y[i] -= med;
+        // Note: median-centering to reduce location confound was tried but not adopted —
+        // the standardized parameterization already keeps the skew-normal at mean 0, variance 1.
         return panel;
     }
 
@@ -542,7 +537,8 @@ function applyEffect(panel, dist, effect, rng, effectGroup = 1) {
             panel.y[i] = panel.y[i] + s;
         }
 
-        // Re-standardize effect group values to the reference group range
+        // Re-standardize the effect group to the reference group's range so that large
+        // separations don't push values far outside the shared y-axis scale.
         let egMin = Infinity, egMax = -Infinity;
         for (let i = 0; i < panel.y.length; i++) {
             if (panel.group[i] !== effectGroup) continue;
@@ -637,7 +633,8 @@ function makeDesign({rng}) {
     const dists = Object.keys(distEffects);
     const conditions = [];
 
-    // Seed pool per dist: cycle through DATA_SEEDS to fill nPerDist slots, then shuffle
+    // Assign data seeds per dist: draw the first nPerDist seeds from DATA_SEEDS (100 screened seeds
+    // always exceeds the max slot count of 60), then shuffle for random assignment to conditions.
     const seedPools = {};
     for (const dist of dists) {
         const nPerDist = distReps[dist] * selectedChartTypes.length;
@@ -674,13 +671,17 @@ function buildTrial(trialIdx, cond) {
     const trialSeed = hashStringToUint32(`${session.participantSeed}|${trialIdx}|${conditionId}`);
     const rng = mulberry32(trialSeed);
 
-    const panel = generateBasePanel(cond.dist, cond.dataSeed, cond.effect, cond.effectGroup);
-    if (cond.dist !== "binomial") applyEffect(panel, cond.dist, cond.effect, rng, cond.effectGroup);
+    const raw = generateBasePanel(cond.dist, cond.dataSeed, cond.effect, cond.effectGroup);
+    // Binomial effects are baked into generateBasePanel via binomialGroupParams; all others are post-hoc.
+    if (cond.dist !== "binomial") applyEffect(raw, cond.dist, cond.effect, rng, cond.effectGroup);
 
+    const panel = finalizePanel(raw.y, raw.group);
+
+    // Groups are sorted, so min/max are at the ends of each group array.
     let yMin = Infinity, yMax = -Infinity;
-    for (const v of panel.y) {
-        if (v < yMin) yMin = v;
-        if (v > yMax) yMax = v;
+    for (const g of panel.groups) {
+        if (g[0] < yMin) yMin = g[0];
+        if (g[g.length - 1] > yMax) yMax = g[g.length - 1];
     }
     const span = (yMax - yMin) || 1;
     const pad = span * 0.12;
@@ -693,43 +694,18 @@ function buildTrial(trialIdx, cond) {
 }
 
 /** ---------- View switching ---------- **/
-function showIntro() {
-    UI.introPage.style.display = "";
+const PAGES = () => [UI.introPage, UI.onboardingPage, UI.trialPage, UI.completionPage];
+function showPage(page) { for (const p of PAGES()) p.style.display = p === page ? "block" : "none"; }
 
-    UI.onboardingPage.style.display = "none";
-    UI.trialPage.style.display = "none";
-    UI.completionPage.style.display = "none";
-}
-
-
-function showOnboarding() {
-    UI.introPage.style.display = "none";
-
-    UI.onboardingPage.style.display = "block";
-    UI.trialPage.style.display = "none";
-    UI.completionPage.style.display = "none";
-    renderOnboardingStep();
-}
-
-function showTrial() {
-    UI.introPage.style.display = "none";
-
-    UI.onboardingPage.style.display = "none";
-    UI.trialPage.style.display = "block";
-    UI.completionPage.style.display = "none";
-}
-
-function showCompletion() {
-    UI.introPage.style.display = "none";
-
-    UI.onboardingPage.style.display = "none";
-    UI.trialPage.style.display = "none";
-    UI.completionPage.style.display = "block";
-}
+function showIntro()      { showPage(UI.introPage); }
+function showOnboarding() { showPage(UI.onboardingPage); renderOnboardingStep(); }
+function showTrial()      { showPage(UI.trialPage); }
+function showCompletion() { showPage(UI.completionPage); }
 
 /** ---------- Onboarding ---------- **/
 function getOnboardingSteps() {
     const n = session.design.selectedChartTypes.length;
+    // Sort chart-type training pages to match the order the participant will first encounter each type.
     const firstOccurrence = new Array(n).fill(Infinity);
     session.design.conditions.forEach((cond, trialIdx) => {
         const i = session.design.selectedChartTypes.findIndex(ct => ct.type === cond.chartType);
@@ -767,14 +743,14 @@ function getOnboardingPanels() {
     const src3b = Array.from({length: N_SRC}, () => randomNormal(rng) * 0.65 + 1.2);
     const s3b = Array.from({length: N_PER_GROUP}, () => randomNormal(rng) * 0.65 + 1.2);
 
-    const panel2 = {
-        y: [...src1, ...s2a, ...s2b, ...s2c],
-        group: [...src1.map(() => 0), ...s2a.map(() => 1), ...s2b.map(() => 2), ...s2c.map(() => 3)],
-    };
-    const panel3 = {
-        y: [...src3a, ...s3a, ...src3b, ...s3b],
-        group: [...src3a.map(() => 0), ...s3a.map(() => 1), ...src3b.map(() => 2), ...s3b.map(() => 3)],
-    };
+    const panel2 = finalizePanel(
+        [...src1, ...s2a, ...s2b, ...s2c],
+        [...src1.map(() => 0), ...s2a.map(() => 1), ...s2b.map(() => 2), ...s2c.map(() => 3)]
+    );
+    const panel3 = finalizePanel(
+        [...src3a, ...s3a, ...src3b, ...s3b],
+        [...src3a.map(() => 0), ...s3a.map(() => 1), ...src3b.map(() => 2), ...s3b.map(() => 3)]
+    );
     _onboardingPanels = {panel2, panel3};
     return _onboardingPanels;
 }
@@ -788,15 +764,13 @@ function buildChartTypeExamplePanel(chartType) {
     const N = N_PER_GROUP * 2;
     const y = Array.from({length: N}, () => Math.exp(sigma * randomNormal(rng)));
     const group = Array.from({length: N}, (_, i) => i < N_PER_GROUP ? 0 : 1);
-    return {y, group};
+    return finalizePanel(y, group);
 }
 
 const WIDTH_2_UP = 350;
 const HEIGHT_2_UP = 500;
-const WIDTH_4_UP_TRAINING = 500;
-const HEIGHT_4_UP_TRAINING = HEIGHT_2_UP;
-const WIDTH_2_UP_TRAINING = WIDTH_2_UP;
-const HEIGHT_2_UP_TRAINING = HEIGHT_2_UP;
+const WIDTH_4_UP_TRAINING = 500;  // 4-panel sampling canvas (wider than the standard 2-up)
+const HEIGHT_4_UP_TRAINING = 500; // same height as the standard 2-up
 
 function renderSamplingCanvas(panel, labels) {
     const c = UI.onboardingCanvas;
@@ -806,9 +780,9 @@ function renderSamplingCanvas(panel, labels) {
     c.style.maxWidth = c.width + "px";
     c.style.display = "block";
     let mn = Infinity, mx = -Infinity;
-    for (const v of panel.y) {
-        if (v < mn) mn = v;
-        if (v > mx) mx = v;
+    for (const g of panel.groups) {
+        if (g[0] < mn) mn = g[0];
+        if (g[g.length - 1] > mx) mx = g[g.length - 1];
     }
     const span = (mx - mn) || 1;
     renderChart(c.getContext("2d"), c, "dot", panel,
@@ -820,15 +794,15 @@ function renderSamplingCanvas(panel, labels) {
 function renderChartTypeCanvas(ct) {
     const c = UI.onboardingCanvas;
     const horiz = currentOrientation() === "horizontal";
-    c.width = horiz ? HEIGHT_2_UP_TRAINING : WIDTH_2_UP_TRAINING;
-    c.height = horiz ? WIDTH_2_UP_TRAINING : HEIGHT_2_UP_TRAINING;
+    c.width = horiz ? HEIGHT_2_UP : WIDTH_2_UP;
+    c.height = horiz ? WIDTH_2_UP : HEIGHT_2_UP;
     c.style.maxWidth = c.width + "px";
     c.style.display = "block";
     const panel = buildChartTypeExamplePanel(ct.type);
     let mn = Infinity, mx = -Infinity;
-    for (const v of panel.y) {
-        if (v < mn) mn = v;
-        if (v > mx) mx = v;
+    for (const g of panel.groups) {
+        if (g[0] < mn) mn = g[0];
+        if (g[g.length - 1] > mx) mx = g[g.length - 1];
     }
     const span = (mx - mn) || 1;
     renderChart(c.getContext("2d"), c, ct.type, panel,
@@ -869,9 +843,9 @@ function renderOnboardingStep() {
     UI.onboardingText2.style.minHeight = isChartTypeSection ? "36px"
                                        : isSamplingSection  ? "100px" : "";
     UI.onboardingCanvasArea.style.minHeight = isChartTypeSection
-        ? (horiz ? WIDTH_2_UP_TRAINING : HEIGHT_2_UP_TRAINING) + "px"
+        ? (horiz ? WIDTH_2_UP : HEIGHT_2_UP) + "px"
         : isSamplingSection
-        ? (horiz ? WIDTH_4_UP_TRAINING : HEIGHT_4_UP_TRAINING) + "px" : "";
+        ? (horiz ? WIDTH_4_UP_TRAINING : HEIGHT_2_UP) + "px" : "";
 
     if (step.type === "sampling2") {
         UI.onboardingTitle.textContent = "Understanding Sampling";
@@ -1054,7 +1028,10 @@ function renderChartTypeThumbs(thumbs) {
         const opts = getLiveCatalogOptions(ct);
         const panel = buildChartTypeExamplePanel(ct.type);
         let mn = Infinity, mx = -Infinity;
-        for (const v of panel.y) { if (v < mn) mn = v; if (v > mx) mx = v; }
+        for (const g of panel.groups) {
+            if (g[0] < mn) mn = g[0];
+            if (g[g.length - 1] > mx) mx = g[g.length - 1];
+        }
         const span = (mx - mn) || 1;
         const ctx = c.getContext("2d");
         ctx.fillStyle = "#ffffff";
@@ -1087,7 +1064,7 @@ function beginSession() {
 }
 
 function startStudy() {
-    postSession(); // fires once on first call; duplicate posts silently fail
+    postSession(); // fires once; re-entries after onboarding resumption are silently rejected by the DB unique constraint on participant_id
     UI.downloadBtn.disabled = UI.downloadDesignBtn.disabled = false;
     showTrial();
     nextTrial();
@@ -1146,10 +1123,8 @@ function recordResponse(rating) {
     const isLast = currentTrial.trialIdx + 1 >= session.design.conditions.length;
     const finishedAt = isLast ? new Date().toISOString() : null;
     const stats = groupStats(currentTrial.panel);
+    // participantId/Seed and startedAtISO are session-level; not duplicated here.
     session.results.push({
-        participantId: session.participantId,
-        participantSeed: session.participantSeed,
-        startedAtISO: session.startedAtISO,
         trialIdx: currentTrial.trialIdx,
         trialSeed: currentTrial.trialSeed,
         condition: currentTrial.condition,
@@ -1197,10 +1172,12 @@ function downloadResults() {
 
 function copyTrialData() {
     if (!currentTrial) return;
-    const {y, group} = currentTrial.panel;
+    const {groups} = currentTrial.panel;
     const rows = ["y,group"];
-    for (let i = 0; i < y.length; i++)
-        rows.push(`${y[i]},${group[i] === 0 ? "A" : "B"}`);
+    const labels = groups.map((_, i) => String.fromCharCode(65 + i));
+    for (let g = 0; g < groups.length; g++)
+        for (const v of groups[g])
+            rows.push(`${v},${labels[g]}`);
     navigator.clipboard.writeText(rows.join("\n"));
 }
 

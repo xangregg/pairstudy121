@@ -13,46 +13,38 @@ export function quantileSorted(sorted, p) {
     return (1 - h) * sorted[lo] + h * sorted[hi];
 }
 
-export function quantile(values, p) {
-    const v = values.slice().sort((a, b) => a - b);
-    return quantileSorted(v, p);
-}
-
-
+// values must be pre-sorted ascending (guaranteed by finalizePanel in app.js).
 export function boxStats(values) {
-    const v = values.slice().sort((a, b) => a - b);
-    const q1 = quantileSorted(v, 0.25);
-    const med = quantileSorted(v, 0.50);
-    const q3 = quantileSorted(v, 0.75);
+    const q1 = quantileSorted(values, 0.25);
+    const med = quantileSorted(values, 0.50);
+    const q3 = quantileSorted(values, 0.75);
     const iqr = q3 - q1;
     const loFence = q1 - 1.5 * iqr;
     const hiFence = q3 + 1.5 * iqr;
 
-    let lo = v[0], hi = v[v.length - 1];
-    for (let i = 0; i < v.length; i++) {
-        if (v[i] >= loFence) {
-            lo = v[i];
+    let loWhisker = values[0], hiWhisker = values[values.length - 1];
+    for (let i = 0; i < values.length; i++) {
+        if (values[i] >= loFence) {
+            loWhisker = values[i];
             break;
         }
     }
-    for (let i = v.length - 1; i >= 0; i--) {
-        if (v[i] <= hiFence) {
-            hi = v[i];
+    for (let i = values.length - 1; i >= 0; i--) {
+        if (values[i] <= hiFence) {
+            hiWhisker = values[i];
             break;
         }
     }
 
-    return {q1, med, q3, lo, hi, loFence, hiFence};
+    return {q1, med, q3, loWhisker, hiWhisker};
 }
 
 function splitGroups(panel) {
-    const nGroups = Math.max(...panel.group) + 1;
-    const groups = Array.from({length: nGroups}, () => []);
-    for (let i = 0; i < panel.y.length; i++)
-        groups[panel.group[i]].push(panel.y[i]);
-    return groups;
+    return panel.groups;
 }
 
+// at this point, the canvas will have been rotated in case of horizontal plots;
+// names like left/right and width/height refer to the ideal situation of vertical plots.
 export function beginPlot(ctx, canvas, yMin, yMax, nGroups = 2, opts = {}) {
     const W = canvas.width, H = canvas.height;
     // No left padding needed for y-axis labels; small uniform margin all around.
@@ -82,13 +74,15 @@ export function beginPlot(ctx, canvas, yMin, yMax, nGroups = 2, opts = {}) {
 
     let padInner = innerW / (20 * (nGroups + 1));
     if (W < H)
-        padInner *= W / H;
+        padInner *= W / H; // reduce inner padding for square/portrait canvases (horizontal orientation)
     const groupSpacing = (innerW - 2 * padInner) / nGroups;
     const xs = Array.from({length: nGroups}, (_, i) => padL + padInner + groupSpacing * (2 * i + 1) / 2);
 
     return {W, H, padL, padR, padT, padB, innerW, innerH, xs, groupSpacing, yMin, yMax, yToPx};
 }
 
+// draw the labels "below" each group's plot, usually a single letter or "Source N",
+// with some effort to compensate for rotation and extra padding for wide text.
 export function drawGroupLabels(ctx, plot, horizontal = false, labels = null) {
     const {xs, H, padB} = plot;
     ctx.fillStyle = "#111";
@@ -107,7 +101,8 @@ export function drawGroupLabels(ctx, plot, horizontal = false, labels = null) {
             ctx.fillText(getLabel(i), 0, 0);
             ctx.restore();
         }
-    } else {
+    }
+    else {
         for (let i = 0; i < xs.length; i++)
             ctx.fillText(getLabel(i), xs[i], H - padB / 2);
     }
@@ -120,24 +115,24 @@ export function renderBoxLayer(ctx, plot, panel, opts = {}) {
     const groups = splitGroups(panel);
 
     const whiskers = opts.whiskers ?? "iqr";   // "iqr" | "range"
-    const widerMedian = opts.widerMedian ?? false;
-    const violinBox = opts.violinBox ?? false;
+    const widerMedian = opts.widerMedian ?? false;  // for range bars and dots overlay
+    const insideViolinPlot = opts.violinBox ?? false;
 
-    const boxW = groupSpacing * (violinBox ? 0.075 : 0.48);
+    const boxW = groupSpacing * (insideViolinPlot ? 0.075 : 0.48);
 
     // For "range" whiskers, override lo/hi with the actual data min/max.
-    function displayStats(s, values) {
+    // values is pre-sorted ascending, so endpoints are direct array accesses.
+    function whiskerAdjustment(s, values) {
         if (whiskers !== "range") return s;
-        const sorted = values.slice().sort((a, b) => a - b);
-        return {...s, lo: sorted[0], hi: sorted[sorted.length - 1]};
+        return {...s, loWhisker: values[0], hiWhisker: values[values.length - 1]};
     }
 
-    function drawOne(x, s) {
+    function drawBoxAndWhiskers(x, s) {
         // Range bar uses half the box width; box plot uses full width.
         const bw = widerMedian ? boxW * 0.5 : boxW;
 
         const yQ1 = yToPx(s.q1), yQ3 = yToPx(s.q3);
-        const yMed = yToPx(s.med), yLo = yToPx(s.lo), yHi = yToPx(s.hi);
+        const yMed = yToPx(s.med), yLo = yToPx(s.loWhisker), yHi = yToPx(s.hiWhisker);
 
         ctx.strokeStyle = "#333";
         ctx.lineWidth = 1.6;
@@ -148,8 +143,8 @@ export function renderBoxLayer(ctx, plot, panel, opts = {}) {
         ctx.lineTo(x, yLo);
         ctx.stroke();
 
-        // caps — omitted for range bar (Spear 1952) and violin box
-        if (!widerMedian && !violinBox) {
+        // whisker caps — omitted for range bar (Spear 1952) and violin box
+        if (!widerMedian && !insideViolinPlot) {
             ctx.beginPath();
             ctx.moveTo(x - bw * 0.3, yHi);
             ctx.lineTo(x + bw * 0.3, yHi);
@@ -189,14 +184,14 @@ export function renderBoxLayer(ctx, plot, panel, opts = {}) {
     function drawOutliers(x, values, s) {
         const r = 5.0;
         const positions = values
-            .filter(v => v < s.loFence || v > s.hiFence)
+            .filter(v => v < s.loWhisker || v > s.hiWhisker)
             .map(v => ({dx: 0, py: yToPx(v)}));
         drawDots(ctx, x, positions, {r, alpha: 0.75});
     }
 
     for (let i = 0; i < xs.length; i++) {
         const s = boxStats(groups[i]);
-        drawOne(xs[i], displayStats(s, groups[i]));
+        drawBoxAndWhiskers(xs[i], whiskerAdjustment(s, groups[i]));
     }
 
     // No outliers for range whiskers — all points are within the whiskers by definition.
@@ -213,6 +208,7 @@ export function renderBoxLayer(ctx, plot, panel, opts = {}) {
 function kdeStddev(arr) {
     const n = arr.length;
     const mean = arr.reduce((s, v) => s + v, 0) / n;
+    // use n instead of n-1 for sd denominator to match Silverman and for as-is spread
     return Math.sqrt(arr.reduce((s, v) => s + (v - mean) ** 2, 0) / n);
 }
 
@@ -221,7 +217,7 @@ function kdeStddev(arr) {
 function kdeBandwidth(arr) {
     const n = arr.length;
     const s = kdeStddev(arr);
-    const iqr = quantile(arr, 0.75) - quantile(arr, 0.25);
+    const iqr = quantileSorted(arr, 0.75) - quantileSorted(arr, 0.25);
     const scale = Math.min(s, iqr / 1.34) || s;
     return 1.06 * scale * Math.pow(n, -0.2);
 }
@@ -231,7 +227,10 @@ function kdeEval(arr, bw, ys) {
     const k = 1 / (arr.length * bw * Math.sqrt(2 * Math.PI));
     return ys.map(y => {
         let sum = 0;
-        for (const v of arr) { const u = (y - v) / bw; sum += Math.exp(-0.5 * u * u); }
+        for (const v of arr) {
+            const u = (y - v) / bw;
+            sum += Math.exp(-0.5 * u * u);
+        }
         return k * sum;
     });
 }
@@ -246,9 +245,10 @@ function computeClippedKDE(values, allYs, margin) {
     let iLo = allYs.findIndex(y => y >= loClip);
     if (iLo < 0) iLo = 0;
     let iHi = allYs.length - 1;
-    while (iHi > iLo && allYs[iHi] > hiClip) iHi--;
+    while (iHi > iLo && allYs[iHi] > hiClip)
+        iHi--;
     const ys = allYs.slice(iLo, iHi + 1);
-    const d  = allD.slice(iLo, iHi + 1);
+    const d = allD.slice(iLo, iHi + 1);
     const maxD = d.reduce((m, v) => Math.max(m, v), 0);
     const sumD = d.reduce((s, v) => s + v, 0);
     return {bw, ys, d, maxD, sumD};
@@ -260,8 +260,9 @@ function computeClippedKDE(values, allYs, margin) {
 // Multiple intervals arise for multimodal distributions.
 function computeAllHDRIntervals(values, coverages, margin = 0) {
     const bw = kdeBandwidth(values);
-    const nGrid = 512;
-    const dataMin = Math.min(...values), dataMax = Math.max(...values);
+    const nGrid = 512;  // higher resolution for interpolation and trapezoidal rule integration
+    const dataMin = Math.min(...values);
+    const dataMax = Math.max(...values);
     const lo = dataMin - 3 * bw;
     const hi = dataMax + 3 * bw;
     const step = (hi - lo) / nGrid;
@@ -269,7 +270,8 @@ function computeAllHDRIntervals(values, coverages, margin = 0) {
     const ds = kdeEval(values, bw, ys);
 
     let total = 0;
-    for (let i = 0; i < nGrid; i++) total += (ds[i] + ds[i + 1]) * 0.5 * step;
+    for (let i = 0; i < nGrid; i++)
+        total += (ds[i] + ds[i + 1]) * 0.5 * step;
 
     function areaAbove(fstar) {
         let area = 0;
@@ -277,12 +279,15 @@ function computeAllHDRIntervals(values, coverages, margin = 0) {
             const d0 = ds[i], d1 = ds[i + 1];
             if (d0 >= fstar && d1 >= fstar) {
                 area += (d0 + d1) * 0.5 * step;
-            } else if (d0 >= fstar || d1 >= fstar) {
+            }
+            else if (d0 >= fstar || d1 >= fstar) {
                 // exactly one side above threshold — find the crossing point
                 const t = (fstar - d0) / (d1 - d0);
                 const yCross = ys[i] + t * step;
-                if (d0 >= fstar) area += (d0 + fstar) * 0.5 * (yCross - ys[i]);
-                else             area += (fstar + d1) * 0.5 * (ys[i + 1] - yCross);
+                if (d0 >= fstar)
+                    area += (d0 + fstar) * 0.5 * (yCross - ys[i]);
+                else
+                    area += (fstar + d1) * 0.5 * (ys[i + 1] - yCross);
             }
         }
         return area / total;
@@ -308,14 +313,18 @@ function computeAllHDRIntervals(values, coverages, margin = 0) {
                     ? ys[i - 1] + ((fstar - ds[i - 1]) / (ds[i] - ds[i - 1])) * step
                     : ys[i];
                 inRegion = true;
-            } else if (ds[i] < fstar && inRegion) {
+            }
+            else if (ds[i] < fstar && inRegion) {
                 const regionHi = ys[i - 1] + ((fstar - ds[i - 1]) / (ds[i] - ds[i - 1])) * step;
                 intervals.push([regionLo, regionHi]);
                 inRegion = false;
             }
         }
-        if (inRegion) intervals.push([regionLo, ys[nGrid]]);
+        if (inRegion)
+            intervals.push([regionLo, ys[nGrid]]);
 
+        // At very low coverage (< 10%), even a narrow interval is a genuine density peak —
+        // don't enforce a minimum width. At higher coverages, drop sub-bw/4 slivers as artifacts.
         const dropInterval = coverage < 0.1 ? 0 : bw / 4;
 
         // Clamp each interval to [clipLo, clipHi]; drop any that become empty.
@@ -330,7 +339,8 @@ function computeAllHDRIntervals(values, coverages, margin = 0) {
         for (const iv of clipped) {
             if (merged.length > 0 && iv[0] - merged[merged.length - 1][1] < dropInterval) {
                 merged[merged.length - 1][1] = iv[1];
-            } else {
+            }
+            else {
                 merged.push([iv[0], iv[1]]);
             }
         }
@@ -341,9 +351,7 @@ function computeAllHDRIntervals(values, coverages, margin = 0) {
 }
 
 // KDE mode: y-value at the peak of the estimated density.
-// Tie-breaking: consecutive tied grid points form a run whose representative y
-// is the run's midpoint; separate runs of equal max density use the middle run
-// (first of two), which is the most natural choice for a symmetric ambiguity.
+// A smooth KDE has a single floating-point maximum in practice; indexOf finds it directly.
 function computeKDEMode(values) {
     const bw = kdeBandwidth(values);
     const nGrid = 512;
@@ -351,25 +359,7 @@ function computeKDEMode(values) {
     const hi = Math.max(...values) + 3 * bw;
     const ys = Array.from({length: nGrid + 1}, (_, i) => lo + (hi - lo) * i / nGrid);
     const ds = kdeEval(values, bw, ys);
-
-    const maxD = Math.max(...ds);
-
-    // Group tied-maximum indices into consecutive runs
-    const runs = [];
-    for (let i = 0; i <= nGrid; i++) {
-        if (ds[i] !== maxD) continue;
-        if (runs.length === 0 || i !== runs[runs.length - 1][runs[runs.length - 1].length - 1] + 1) {
-            runs.push([i]);
-        } else {
-            runs[runs.length - 1].push(i);
-        }
-    }
-
-    // Each run's y is the average of its grid points (midpoint for a flat plateau)
-    const runYs = runs.map(r => r.reduce((s, i) => s + ys[i], 0) / r.length);
-
-    // Middle run (rounds down → first of two), the most central peak estimate
-    return runYs[Math.floor((runYs.length - 1) / 2)];
+    return ys[ds.indexOf(Math.max(...ds))];
 }
 
 // Default color table for bands: each entry covers coverages from the previous
@@ -377,25 +367,25 @@ function computeKDEMode(values) {
 // in that range gets that fill.  Lower coverage = denser region = darker gray.
 // Override per-render via opts.bandFills.
 export const DEFAULT_BAND_FILLS = [
-    { cutoff: 0.20, fill: "#666666" },   // 0 – 20 %: very dense
-    { cutoff: 0.40, fill: "#777777" },   // 20 – 40 %: very dense
-    { cutoff: 0.75, fill: "#aaaaaa" },   // 40 – 75 %
-    { cutoff: 0.95, fill: "#cccccc" },   // 75 – 95 %
-    { cutoff: 1.00, fill: "#e8e8e8" },   // 95 – 100 %: sparse
+    {cutoff: 0.20, fill: "#666666"},   // 0 – 20 %: very dense
+    {cutoff: 0.40, fill: "#777777"},   // 20 – 40 %: dense
+    {cutoff: 0.75, fill: "#aaaaaa"},   // 40 – 75 %
+    {cutoff: 0.95, fill: "#cccccc"},   // 75 – 95 %
+    {cutoff: 1.00, fill: "#e8e8e8"},   // 95 – 100 %: sparse
 ];
 
 export function renderBandsLayer(ctx, plot, panel, opts = {}) {
     const {yToPx, groupSpacing, innerH, yMin, yMax, xs} = plot;
     const groups = splitGroups(panel);
 
-    const bandType   = opts.bandType   ?? "quantile";
-    const cutoffs    = (opts.cutoffs   ?? [0.50, 0.90, 0.99]).slice().sort((a, b) => a - b);
+    const bandType = opts.bandType ?? "quantile";
+    const cutoffs = (opts.cutoffs ?? [0.50, 0.90, 0.99]).slice().sort((a, b) => a - b);
     const finalCutoff = cutoffs[cutoffs.length - 1];
     const showDots = opts.showDots ?? finalCutoff < 1;
     const showMedian = opts.showMedian ?? true;
-    const showMode   = opts.showMode   ?? false;
-    const clipPx     = opts.clipPx     ?? 6;
-    const bandFills  = opts.bandFills  ?? DEFAULT_BAND_FILLS;
+    const showMode = opts.showMode ?? false;
+    const clipPx = opts.clipPx ?? 6;
+    const bandFills = opts.bandFills ?? DEFAULT_BAND_FILLS;
 
     // Margin in data units: same pixel rule as renderViolinLayer
     const hdrMargin = clipPx * (yMax - yMin) / innerH;
@@ -441,7 +431,7 @@ export function renderBandsLayer(ctx, plot, panel, opts = {}) {
     // Each interval list is [[lo, hi], ...] (multiple intervals for HDR multimodal).
     function getBandIntervals(values) {
         if (bandType === "quantile") {
-            return cutoffs.map(p => [[quantile(values, (1 - p) / 2), quantile(values, (1 + p) / 2)]]);
+            return cutoffs.map(p => [[quantileSorted(values, (1 - p) / 2), quantileSorted(values, (1 + p) / 2)]]);
         }
         return computeAllHDRIntervals(values, cutoffs, hdrMargin);
     }
@@ -461,8 +451,8 @@ export function renderBandsLayer(ctx, plot, panel, opts = {}) {
             drawTailDots(x, values, bandIntervals[cutoffs.length - 1]);
         }
 
-        if (showMedian) drawHorizLine(x, quantile(values, 0.5));
-        if (showMode)   drawHorizLine(x, computeKDEMode(values));
+        if (showMedian) drawHorizLine(x, quantileSorted(values, 0.5));
+        if (showMode) drawHorizLine(x, computeKDEMode(values));
     }
 
     for (let i = 0; i < xs.length; i++)
@@ -487,7 +477,7 @@ export function renderDotLayer(ctx, plot, panel, opts = {}) {
 
     const r = opts.radius ?? 6;
     const alpha = opts.alpha ?? 0.55;
-    const jitterW     = opts.jitterW     ?? groupSpacing * 0.36;   // guide width for random candidates
+    const jitterW = opts.jitterW ?? groupSpacing * 0.36;   // guide width for random candidates
     const jitterLimit = opts.jitterLimit ?? Math.min(jitterW * 3, groupSpacing / 2 - r);   // hard cap
     const showMedian = opts.showMedian ?? true;
     const jitter = opts.jitter ?? "random";   // "random" | "wilkinson" | "beeswarm" | "density random"
@@ -495,6 +485,7 @@ export function renderDotLayer(ctx, plot, panel, opts = {}) {
     // Each compute function returns [{dx, py}] positions relative to the group center.
     // Drawing is deferred so an overflow scale can be applied across both groups.
 
+    // Fixed seed so jitter positions are deterministic and stable across re-renders.
     let rng = mulberry32(10000);
 
     function overlapScore(dx, py, placed) {
@@ -506,16 +497,17 @@ export function renderDotLayer(ctx, plot, panel, opts = {}) {
         return score;
     }
 
-    function computeGroupDotsRandom(values) {
-        const sorted = values.slice().sort((a, b) => a - b);
+    // Place dots by random candidate sampling: draw nTries random dx values within halfWidthFn(v)
+    // of center, keep the one with least overlap (ties broken by proximity to center).
+    function computeGroupDotsRandomBase(values, halfWidthFn, nTries) {
         const placed = [];
-        for (const v of sorted) {
+        for (const v of values) {
             const py = yToPx(v);
-            let bestDx = (rng() - 0.5) * 2 * jitterW;
+            const hw = halfWidthFn(v);
+            let bestDx = (rng() - 0.5) * 2 * hw;
             let bestOverlap = overlapScore(bestDx, py, placed);
-            const overlapTries = 2;
-            for (let t = 0; t < overlapTries; t++) {
-                const dx = (rng() - 0.5) * 2 * jitterW;
+            for (let t = 0; t < nTries; t++) {
+                const dx = (rng() - 0.5) * 2 * hw;
                 const overlap = overlapScore(dx, py, placed);
                 if (overlap < bestOverlap || (overlap === bestOverlap && Math.abs(dx) < Math.abs(bestDx))) {
                     bestOverlap = overlap;
@@ -527,6 +519,10 @@ export function renderDotLayer(ctx, plot, panel, opts = {}) {
         return placed;
     }
 
+    function computeGroupDotsRandom(values) {
+        return computeGroupDotsRandomBase(values, () => jitterW, 2);
+    }
+
     // Wilkinson dot plot: greedy y-binning, symmetric horizontal stacking.
     function computeGroupDotsWilkinson(values) {
         const pys = values.map(v => yToPx(v)).sort((a, b) => a - b);
@@ -534,7 +530,7 @@ export function renderDotLayer(ctx, plot, panel, opts = {}) {
         for (const py of pys) {
             const last = bins[bins.length - 1];
             if (!last || py - last.anchor > 2 * r) bins.push({anchor: py, pys: [py]});
-            else                                    last.pys.push(py);
+            else last.pys.push(py);
         }
         for (const bin of bins)
             bin.py = bin.pys.reduce((s, v) => s + v, 0) / bin.pys.length;
@@ -563,25 +559,8 @@ export function renderDotLayer(ctx, plot, panel, opts = {}) {
     }
 
     function computeGroupDotsDensityRandom(values, halfWFn) {
-        const sorted = values.slice().sort((a, b) => a - b);
-        const placed = [];
-        for (const v of sorted) {
-            const py = yToPx(v);
-            const limit = Math.max(1, halfWFn(v) - r/3);
-            let bestDx = (rng() - 0.5) * 2 * limit;
-            let bestOverlap = overlapScore(bestDx, py, placed);
-            const overlapTries = 7;
-            for (let t = 0; t < overlapTries; t++) {
-                const dx = (rng() - 0.5) * 2 * limit;
-                const overlap = overlapScore(dx, py, placed);
-                if (overlap < bestOverlap || (overlap === bestOverlap && Math.abs(dx) < Math.abs(bestDx))) {
-                    bestOverlap = overlap;
-                    bestDx = dx;
-                }
-            }
-            placed.push({dx: bestDx, py});
-        }
-        return placed;
+        // r/3 inset keeps dot edges within the violin outline; more tries than random for tighter packing.
+        return computeGroupDotsRandomBase(values, v => Math.max(1, halfWFn(v) - r / 3), 7);
     }
 
     // Beeswarm: bottom-to-top, forbidden-interval placement.
@@ -602,10 +581,11 @@ export function renderDotLayer(ctx, plot, panel, opts = {}) {
             let bestDx = Infinity;
             for (const c of candidates) {
                 if (Math.abs(c) < Math.abs(bestDx) &&
-                        !forbidden.some(([lo, hi]) => c > lo && c < hi))
+                    !forbidden.some(([lo, hi]) => c > lo && c < hi))
                     bestDx = c;
             }
-            if (!isFinite(bestDx)) bestDx = 0;
+            if (!isFinite(bestDx))
+                bestDx = 0;
             placed.push({dx: bestDx, py});
         }
         return placed;
@@ -615,10 +595,11 @@ export function renderDotLayer(ctx, plot, panel, opts = {}) {
     if (jitter === "density random") {
         const halfWFns = computeViolinHalfWidthFns();
         allPos = groups.map((g, i) => computeGroupDotsDensityRandom(g, halfWFns[i]));
-    } else {
+    }
+    else {
         const computeGroupDots = jitter === "wilkinson" ? computeGroupDotsWilkinson
-                               : jitter === "beeswarm"  ? computeGroupDotsBeeswarm
-                               :                          computeGroupDotsRandom;
+            : jitter === "beeswarm" ? computeGroupDotsBeeswarm
+                : computeGroupDotsRandom;
         allPos = groups.map(g => computeGroupDots(g));
     }
 
@@ -636,7 +617,7 @@ export function renderDotLayer(ctx, plot, panel, opts = {}) {
         const w = groupSpacing * 0.4;
         ctx.beginPath();
         for (let i = 0; i < xs.length; i++) {
-            const med = quantile(groups[i], 0.5);
+            const med = quantileSorted(groups[i], 0.5);
             ctx.moveTo(xs[i] - w / 2, yToPx(med));
             ctx.lineTo(xs[i] + w / 2, yToPx(med));
         }
@@ -666,7 +647,7 @@ export function renderViolinLayer(ctx, plot, panel, opts = {}) {
         // Clip to clipPx pixels beyond the data range — path starts/ends at non-zero density.
         const allYs = Array.from({length: nGrid + 1}, (_, i) => yMin + (yMax - yMin) * i / nGrid);
         const {bw, ys, d} = computeClippedKDE(values, allYs, clipPx * pxToData);
-        const med = quantile(values, 0.5);
+        const med = quantileSorted(values, 0.5);
         const medD = kdeEval(values, bw, [med])[0];
         return {ys, d, med, medD};
     }
@@ -722,8 +703,8 @@ export function renderChart(ctx, canvas, chartType, panel, yMin, yMax, chartOpti
     }
     const vc = horizontal ? {width: canvas.height, height: canvas.width} : canvas;
 
-    const nGroups = Math.max(...panel.group) + 1;
-    const plot = beginPlot(ctx, vc, yMin, yMax, nGroups, { padB: chartOptions.padB });
+    const nGroups = panel.groups.length;
+    const plot = beginPlot(ctx, vc, yMin, yMax, nGroups, {padB: chartOptions.padB});
 
     if (chartType === "violin") {
         renderViolinLayer(ctx, plot, panel, {...chartOptions});
@@ -771,9 +752,10 @@ export function renderChart(ctx, canvas, chartType, panel, yMin, yMax, chartOpti
         }
     }
     else {
-        debugger;
+        throw new Error("Unknown chart type: " + chartType);
     }
 
     drawGroupLabels(ctx, plot, horizontal, chartOptions.groupLabels ?? null);
-    if (horizontal) ctx.restore();
+    if (horizontal)
+        ctx.restore();
 }

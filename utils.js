@@ -11,6 +11,7 @@ export function mulberry32(a) {
     };
 }
 
+// FNV-1a 32-bit hash. Offset basis: 2166136261; prime: 16777619.
 export function hashStringToUint32(str) {
     let h = 2166136261 >>> 0;
     for (let i = 0; i < str.length; i++) {
@@ -20,6 +21,7 @@ export function hashStringToUint32(str) {
     return h >>> 0;
 }
 
+// Box-Muller transform. Consumes two RNG draws; loops guard against u/v = 0 (log undefined).
 export function randomNormal(rng) {
     let u, v;
     do { u = rng(); } while (!(u > 0));
