@@ -191,8 +191,7 @@ const UI = {
     onboardingPage: document.getElementById("onboardingPage"),
     onboardingTitle: document.getElementById("onboardingTitle"),
     onboardingCounter: document.getElementById("onboardingCounter"),
-    onboardingText1: document.getElementById("onboardingText1"),
-    onboardingText2: document.getElementById("onboardingText2"),
+    onboardingText: document.getElementById("onboardingText"),
     onboardingCanvasArea: document.getElementById("onboardingCanvasArea"),
     onboardingCanvas: document.getElementById("onboardingCanvas"),
     onboardingThumbnails: document.getElementById("onboardingThumbnails"),
@@ -715,6 +714,7 @@ function getOnboardingSteps() {
         .sort((a, b) => firstOccurrence[a] - firstOccurrence[b]);
     return [
         {type: "background"},
+        {type: "sampling1"},
         {type: "sampling2"},
         {type: "sampling3"},
         {type: "chartTypeIntro"},
@@ -743,6 +743,10 @@ function getOnboardingPanels() {
     const src3b = Array.from({length: N_SRC}, () => randomNormal(rng) * 0.65 + 1.2);
     const s3b = Array.from({length: N_PER_GROUP}, () => randomNormal(rng) * 0.65 + 1.2);
 
+    const panel1 = finalizePanel(
+        [...src1, ...s2a],
+        [...src1.map(() => 0), ...s2a.map(() => 1)]
+    );
     const panel2 = finalizePanel(
         [...src1, ...s2a, ...s2b, ...s2c],
         [...src1.map(() => 0), ...s2a.map(() => 1), ...s2b.map(() => 2), ...s2c.map(() => 3)]
@@ -751,7 +755,7 @@ function getOnboardingPanels() {
         [...src3a, ...s3a, ...src3b, ...s3b],
         [...src3a.map(() => 0), ...s3a.map(() => 1), ...src3b.map(() => 2), ...s3b.map(() => 3)]
     );
-    _onboardingPanels = {panel2, panel3};
+    _onboardingPanels = {panel1, panel2, panel3};
     return _onboardingPanels;
 }
 
@@ -810,11 +814,6 @@ function renderChartTypeCanvas(ct) {
         {violinScale: 7, ...ct.options}, currentOrientation(), session.design.jitter);
 }
 
-const SAMPLING_BLURB = `<p>The charts you'll be comparing are each made from
-    <strong>50 data values sampled from a larger source</strong>.
-    Two samples from the same source will look similar but not identical.
-    Differences due to random chance are normal, and occasional stray values can appear by chance.</p>`;
-
 // Look up the live catalog variant so explanation functions survive localStorage round-trips.
 function getLiveCatalogOptions(ct) {
     const entry = CHART_TYPE_CATALOG.find(e => e.type === ct.type);
@@ -826,9 +825,7 @@ function renderOnboardingStep() {
     const step = steps[session.onboardingStep];
 
     UI.onboardingCounter.textContent = `Step ${session.onboardingStep + 1} of ${steps.length}`;
-    UI.onboardingText1.innerHTML = "";
-    UI.onboardingText1.classList.remove("muted");
-    UI.onboardingText2.innerHTML = "";
+    UI.onboardingText.innerHTML = "";
     UI.onboardingChartLabel.textContent = "";
     UI.onboardingCanvas.style.display = "none";
     UI.onboardingThumbnails.style.display = "none";
@@ -837,35 +834,38 @@ function renderOnboardingStep() {
     // Reserve fixed heights within each section so the canvas and Continue button
     // stay at the same vertical position across pages within a section.
     const isChartTypeSection = step.type === "chartTypeIntro" || step.type === "chartType";
-    const isSamplingSection  = step.type === "sampling2"      || step.type === "sampling3";
+    const isSamplingSection  = step.type === "sampling1" || step.type === "sampling2" || step.type === "sampling3";
     const horiz = currentOrientation() === "horizontal";
-    UI.onboardingText1.style.minHeight = isChartTypeSection ? "100px" : "";
-    UI.onboardingText2.style.minHeight = isChartTypeSection ? "36px"
-                                       : isSamplingSection  ? "100px" : "";
+    UI.onboardingText.style.minHeight = isChartTypeSection ? "150px" : isSamplingSection ? "100px" : "";
     UI.onboardingCanvasArea.style.minHeight = isChartTypeSection
         ? (horiz ? WIDTH_2_UP : HEIGHT_2_UP) + "px"
         : isSamplingSection
-        ? (horiz ? WIDTH_4_UP_TRAINING : HEIGHT_2_UP) + "px" : "";
+        ? (horiz ? WIDTH_4_UP_TRAINING : HEIGHT_4_UP_TRAINING) + "px" : "";
 
-    if (step.type === "sampling2") {
+    if (step.type === "sampling1") {
         UI.onboardingTitle.textContent = "Understanding Sampling";
-        UI.onboardingText1.innerHTML = SAMPLING_BLURB;
-        UI.onboardingText1.classList.remove("muted");
-        UI.onboardingText2.innerHTML =
-            `<p class="ob-section-head">Same Source, Similar Samples</p>
-            <p>Below is one source (500 values) and three random 50-value samples from it (A, B, C).
+        UI.onboardingText.innerHTML =
+            `<p>The charts you'll be comparing are each made from
+            <strong>50 data values sampled from a larger source</strong>.</p>
+            <p>Below is one source (500 values) and one random 50-value sample from it.</p>`;
+        const {panel1} = getOnboardingPanels();
+        renderSamplingCanvas(panel1, ["Source", "Sample"]);
+
+    }
+    else if (step.type === "sampling2") {
+        UI.onboardingTitle.textContent = "Same Source, Similar Samples";
+        UI.onboardingText.innerHTML =
+            `<p>Two samples from the same source will look similar but not identical.</p>
+            <p>Below is one source and three random 50-value samples from it (A, B, C).
             The samples resemble the source and each other, but each looks slightly different.</p>`;
         const {panel2} = getOnboardingPanels();
         renderSamplingCanvas(panel2, ["Source", "A", "B", "C"]);
 
     }
     else if (step.type === "sampling3") {
-        UI.onboardingTitle.textContent = "Understanding Sampling";
-        UI.onboardingText1.innerHTML = SAMPLING_BLURB;
-        UI.onboardingText1.classList.add("muted");
-        UI.onboardingText2.innerHTML =
-            `<p class="ob-section-head">Different Sources, Different Samples</p>
-            <p>Below are two different sources, each with one random sample.
+        UI.onboardingTitle.textContent = "Different Sources, Different Samples";
+        UI.onboardingText.innerHTML =
+            `<p>Below are two different sources, each with one random sample.
             Sources can differ in location or shape.
             Source 2 has higher values and less spread.
             Notice how samples A and B look different from each other.</p>`;
@@ -876,7 +876,7 @@ function renderOnboardingStep() {
     else if (step.type === "chartTypeIntro") {
         const n = session.design.selectedChartTypes.length;
         UI.onboardingTitle.textContent = "Chart Types";
-        UI.onboardingText1.innerHTML =
+        UI.onboardingText.innerHTML =
             `<p>Over the course of the study you'll see <strong>${n} chart ${n === 1 ? "type" : "types"}</strong>,
             briefly explained on the following pages.
             It's not important to remember every detail —
@@ -890,16 +890,16 @@ function renderOnboardingStep() {
         const opts = getLiveCatalogOptions(ct);
         UI.onboardingTitle.textContent = `How to read: ${opts.description}`;
         const expl = typeof opts.explanation === "function" ? opts.explanation() : (opts.explanation ?? "");
-        UI.onboardingText1.innerHTML = `<p>${expl}</p>`;
-        UI.onboardingText2.innerHTML =
-            `<p>Below is an example pair where both samples come from the same source.</p>`;
+        UI.onboardingText.innerHTML =
+            `<p>${expl}</p>
+            <p>Below is an example pair where both samples come from the same source.</p>`;
         renderChartTypeCanvas(ct);
         UI.onboardingChartLabel.textContent = opts.description;
     }
     else if (step.type === "responseScale") {
         const total = session.design.conditions.length;
         UI.onboardingTitle.textContent = "Your Task";
-        UI.onboardingText1.innerHTML =
+        UI.onboardingText.innerHTML =
             `<p>For each of the <strong>${total} chart pairs</strong>, rate how much evidence
             they provide that groups A and B come from <strong>genuinely different sources</strong>.</p>
             <table class="ob-scale-table">
@@ -915,7 +915,7 @@ function renderOnboardingStep() {
     }
     else if (step.type === "background") {
         UI.onboardingTitle.textContent = "About You";
-        UI.onboardingText1.innerHTML =
+        UI.onboardingText.innerHTML =
             `<p>Before we start, a few quick questions about your prior knowledge.</p>` +
             BG_SECTIONS.map(sec => `
             <p class="ob-section-head">${sec.heading}</p>
@@ -933,14 +933,14 @@ function renderOnboardingStep() {
         // Restore any previously saved selections
         const bg = session.background ?? {};
         for (const [key, val] of Object.entries(bg)) {
-            const btn = UI.onboardingText1.querySelector(`.bg-btn[data-key="${key}"][data-value="${val}"]`);
+            const btn = UI.onboardingText.querySelector(`.bg-btn[data-key="${key}"][data-value="${val}"]`);
             if (btn) btn.classList.add("selected");
         }
         // Click handlers — save each selection immediately
-        UI.onboardingText1.querySelectorAll(".bg-btn").forEach(btn => {
+        UI.onboardingText.querySelectorAll(".bg-btn").forEach(btn => {
             btn.addEventListener("click", () => {
                 const {key, value} = btn.dataset;
-                UI.onboardingText1.querySelectorAll(`.bg-btn[data-key="${key}"]`)
+                UI.onboardingText.querySelectorAll(`.bg-btn[data-key="${key}"]`)
                     .forEach(b => b.classList.remove("selected"));
                 btn.classList.add("selected");
                 if (!session.background) session.background = {};
