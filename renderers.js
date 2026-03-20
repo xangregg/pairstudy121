@@ -5,7 +5,8 @@ import {mulberry32} from "./utils.js";
 
 export function quantileSorted(sorted, p) {
     const n = sorted.length;
-    if (n === 0) return NaN;
+    if (n === 0)
+        return NaN;
     const idx = (n - 1) * p;
     const lo = Math.floor(idx);
     const hi = Math.ceil(idx);
@@ -123,7 +124,8 @@ export function renderBoxLayer(ctx, plot, panel, opts = {}) {
     // For "range" whiskers, override lo/hi with the actual data min/max.
     // values is pre-sorted ascending, so endpoints are direct array accesses.
     function whiskerAdjustment(s, values) {
-        if (whiskers !== "range") return s;
+        if (whiskers !== "range")
+            return s;
         return {...s, loWhisker: values[0], hiWhisker: values[values.length - 1]};
     }
 
@@ -243,7 +245,8 @@ function computeClippedKDE(values, allYs, margin) {
     const loClip = Math.min(...values) - margin;
     const hiClip = Math.max(...values) + margin;
     let iLo = allYs.findIndex(y => y >= loClip);
-    if (iLo < 0) iLo = 0;
+    if (iLo < 0)
+        iLo = 0;
     let iHi = allYs.length - 1;
     while (iHi > iLo && allYs[iHi] > hiClip)
         iHi--;
@@ -297,7 +300,10 @@ function computeAllHDRIntervals(values, coverages, margin = 0) {
         let fLo = 0, fHi = Math.max(...ds);
         for (let iter = 0; iter < 50; iter++) {
             const fMid = (fLo + fHi) / 2;
-            if (areaAbove(fMid) > coverage) fLo = fMid; else fHi = fMid;
+            if (areaAbove(fMid) > coverage)
+                fLo = fMid;
+            else
+                fHi = fMid;
         }
         return (fLo + fHi) / 2;
     }
@@ -396,7 +402,8 @@ export function renderBandsLayer(ctx, plot, panel, opts = {}) {
     // Finds the first table entry where c <= entry.cutoff.
     function lookupFill(c) {
         for (const entry of bandFills) {
-            if (c <= entry.cutoff) return entry.fill;
+            if (c <= entry.cutoff)
+                return entry.fill;
         }
         return bandFills[bandFills.length - 1].fill;
     }
@@ -451,8 +458,10 @@ export function renderBandsLayer(ctx, plot, panel, opts = {}) {
             drawTailDots(x, values, bandIntervals[cutoffs.length - 1]);
         }
 
-        if (showMedian) drawHorizLine(x, quantileSorted(values, 0.5));
-        if (showMode) drawHorizLine(x, computeKDEMode(values));
+        if (showMedian)
+            drawHorizLine(x, quantileSorted(values, 0.5));
+        if (showMode)
+            drawHorizLine(x, computeKDEMode(values));
     }
 
     for (let i = 0; i < xs.length; i++)
@@ -529,8 +538,10 @@ export function renderDotLayer(ctx, plot, panel, opts = {}) {
         const bins = [];
         for (const py of pys) {
             const last = bins[bins.length - 1];
-            if (!last || py - last.anchor > 2 * r) bins.push({anchor: py, pys: [py]});
-            else last.pys.push(py);
+            if (!last || py - last.anchor > 2 * r)
+                bins.push({anchor: py, pys: [py]});
+            else
+                last.pys.push(py);
         }
         for (const bin of bins)
             bin.py = bin.pys.reduce((s, v) => s + v, 0) / bin.pys.length;
@@ -577,7 +588,8 @@ export function renderDotLayer(ctx, plot, panel, opts = {}) {
                 }
             }
             const candidates = [0];
-            for (const [lo, hi] of forbidden) candidates.push(lo, hi);
+            for (const [lo, hi] of forbidden)
+                candidates.push(lo, hi);
             let bestDx = Infinity;
             for (const c of candidates) {
                 if (Math.abs(c) < Math.abs(bestDx) &&
@@ -655,7 +667,8 @@ export function renderViolinLayer(ctx, plot, panel, opts = {}) {
     const violins = groups.map(computeViolin);
 
     function drawViolin(x, v) {
-        if (v.d.every(d => d === 0)) return;
+        if (v.d.every(d => d === 0))
+            return;
 
         const n = v.d.length;
         ctx.beginPath();

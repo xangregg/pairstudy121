@@ -106,15 +106,18 @@
         .ob-text.muted strong { color: var(--text-faint); }
         .ob-section-head { font-size: 18px; font-weight: 600; color: var(--text); margin: 4px 0 10px; }
         .ob-subtitle { font-size: 13px; color: var(--text-muted); margin: -10px 0 14px; }
-        #onboardingCanvasArea { overflow: hidden; }
-        .ob-chart-label { font-size: 16px; color: var(--text-muted); margin: 4px 0 16px; }
-        #onboardingCanvas { display: none; width: 100%; height: auto; margin: 10px auto 4px; }
-        #onboardingContinueBtn { display: block; margin-left: auto; margin-top: 20px; font-size: 16px; padding: 12px 32px;
+        #onboardingCanvasArea { overflow: hidden; position: relative; }
+        .ob-chart-label { position: absolute; top: 8px; left: 8px; font-size: 14px; color: var(--text-muted);
+            background: var(--bg); padding: 2px 6px; border-radius: 4px; pointer-events: none; }
+        #onboardingCanvas { display: none; width: 100%; height: auto; margin: 0px auto 0px; }
+        .ob-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
+        #onboardingBackBtn { font-size: 16px; padding: 12px 32px; visibility: hidden; }
+        #onboardingContinueBtn { font-size: 16px; padding: 12px 32px;
             background: var(--action-bg); color: var(--action-fg);
             border-color: var(--action-bg); border-radius: 10px; }
         #onboardingContinueBtn:hover { background: var(--action-hover); border-color: var(--action-hover); }
         .ob-scale-table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 12px 0 18px; }
-        .ob-scale-table td, .ob-scale-table th { font-size: 16px; border: 1px solid var(--border-light); padding: 7px 12px; text-align: left; }
+        .ob-scale-table td, .ob-scale-table th { font-size: 16px; border: 1px solid var(--border-light); padding: 14px 12px; text-align: left; }
         .ob-scale-table th { font-size: 16px; background: var(--surface-alt); font-weight: 600; }
         .ob-scale-table td:first-child { text-align: center; white-space: nowrap; }
 
@@ -222,7 +225,7 @@
     <div class="ob-text" id="onboardingText"></div>
     <div id="onboardingCanvasArea">
         <canvas id="onboardingCanvas"></canvas>
-        <div id="onboardingThumbnails" style="display:none; gap: 10px; margin: 10px 0 4px;">
+        <div id="onboardingThumbnails" style="display:none; gap: 10px; margin: 0px 0 0px;">
             <canvas class="onboardingThumb"></canvas>
             <canvas class="onboardingThumb"></canvas>
             <canvas class="onboardingThumb"></canvas>
@@ -230,7 +233,10 @@
         </div>
         <div class="ob-chart-label" id="onboardingChartLabel"></div>
     </div>
-    <button id="onboardingContinueBtn">Continue</button>
+    <div class="ob-nav">
+        <button id="onboardingBackBtn">Back</button>
+        <button id="onboardingContinueBtn">Continue</button>
+    </div>
 </div>
 
 <!-- ===================== TRIAL PAGE ===================== -->

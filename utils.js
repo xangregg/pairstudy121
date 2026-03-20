@@ -1,7 +1,8 @@
 // utils.js — shared RNG and math utilities
 
 export function mulberry32(a) {
-    if (!Number.isFinite(a) || (a >>> 0) !== a) debugger; // bad seed: inspect call stack here
+    if (!Number.isFinite(a) || (a >>> 0) !== a)
+        debugger; // bad seed: inspect call stack here
     a >>>= 0; // coerce to uint32; guards against NaN/float seeds
     return function () {
         let t = a = (a + 0x6D2B79F5) >>> 0;
@@ -32,7 +33,8 @@ export function randomNormal(rng) {
 export function makeBinomialSampler(n, p) {
     // Log-factorials for stable per-term computation (no recurrence from pow(1-p,n))
     const logFact = new Float64Array(n + 1);
-    for (let i = 1; i <= n; i++) logFact[i] = logFact[i - 1] + Math.log(i);
+    for (let i = 1; i <= n; i++)
+        logFact[i] = logFact[i - 1] + Math.log(i);
 
     const logP = Math.log(p), logQ = Math.log(1 - p);
 
@@ -44,7 +46,8 @@ export function makeBinomialSampler(n, p) {
         cdf[k] = sum;
     }
     // Normalize and clamp to guard against any residual floating-point drift
-    for (let k = 0; k <= n; k++) cdf[k] /= sum;
+    for (let k = 0; k <= n; k++)
+        cdf[k] /= sum;
     cdf[n] = 1;
 
     return function(rng) {
@@ -52,7 +55,10 @@ export function makeBinomialSampler(n, p) {
         let lo = 0, hi = n;
         while (lo < hi) {
             const mid = (lo + hi) >> 1;
-            if (cdf[mid] < u) lo = mid + 1; else hi = mid;
+            if (cdf[mid] < u)
+                lo = mid + 1;
+            else
+                hi = mid;
         }
         return lo;
     };

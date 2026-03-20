@@ -35,7 +35,8 @@ function postResponse(trial, rating, rtMs, finishedAt = null, stats = null) {
         row.b_mean = stats.b.mean; row.b_sd = stats.b.sd;
         row.b_min = stats.b.min; row.b_q1 = stats.b.q1; row.b_med = stats.b.med; row.b_q3 = stats.b.q3; row.b_max = stats.b.max;
     }
-    if (NOSUBMIT) return;
+    if (NOSUBMIT)
+        return;
     fetch(`${SUPA_URL}/rest/v1/responses`, {
         method: "POST",
         headers: {
@@ -84,7 +85,8 @@ function postSession() {
         viewport_w: window.innerWidth,
         viewport_h: window.innerHeight,
     };
-    if (NOSUBMIT) return;
+    if (NOSUBMIT)
+        return;
     fetch(`${SUPA_URL}/rest/v1/sessions`, {
         method: "POST",
         headers: {
@@ -148,8 +150,8 @@ const N_VARIANT_TYPES = TESTING ? Infinity : 1;
 // Number of reps per dist — tune to control trial count proportions
 // const distReps0 = {normal: 1, lognormal: 1, binomial: 1};
 const distReps = TESTING
-    ? {normal: 3, lognormal: 1, binomial: 1}
-    : {normal: 15, lognormal: 5, binomial: 5};
+    ? {normal: 3, lognormal: 0, binomial: 0}
+    : {normal: 25, lognormal: 0, binomial: 0};
 
 const RATING_DELAY_MS = 500;   // ms before rating buttons activate
 const JITTER_CATALOG = ["random", "wilkinson", "beeswarm", "density random"];
@@ -168,7 +170,8 @@ function loadOrCreateSession() {
         try {
             const saved = JSON.parse(raw);
             // Resume saved session unless a different pid was requested via URL
-            if (!urlPid || saved.participantId === urlPid) return saved;
+            if (!urlPid || saved.participantId === urlPid)
+                return saved;
         } catch {
         }
     }
@@ -196,6 +199,7 @@ const UI = {
     onboardingCanvas: document.getElementById("onboardingCanvas"),
     onboardingThumbnails: document.getElementById("onboardingThumbnails"),
     onboardingChartLabel: document.getElementById("onboardingChartLabel"),
+    onboardingBackBtn:     document.getElementById("onboardingBackBtn"),
     onboardingContinueBtn: document.getElementById("onboardingContinueBtn"),
     trialPage: document.getElementById("trialPage"),
     introStartBtn: document.getElementById("introStartBtn"),
@@ -234,9 +238,12 @@ function horizontalWord() { return currentOrientation() === "vertical" ? "horizo
 function heightWord()     { return currentOrientation() === "vertical" ? "height"     : "width";      }
 
 function jitterDesc(jitter) {
-    if (jitter === "wilkinson")      return "Dots at similar values are aligned and stacked in a symmetric pattern.";
-    if (jitter === "beeswarm")       return "Dots spread to each side in a balanced pattern to minimize overlap.";
-    if (jitter === "density random") return "Dots spread more widely where values are densely packed.";
+    if (jitter === "wilkinson")
+        return "Dots at similar values are aligned and stacked in a symmetric pattern.";
+    if (jitter === "beeswarm")
+        return "Dots spread to each side in a balanced pattern to minimize overlap.";
+    if (jitter === "density random")
+        return "Dots spread more widely where values are densely packed.";
     return "Dots at similar values are spread apart to reduce overlap."; // "random"
 }
 
@@ -375,7 +382,8 @@ function generateBasePanel(dist, seed, effect = {type: "null"}, effectGroup = 1)
     const N = N_PER_GROUP * 2;
     const y = new Array(N);
     const group = new Array(N);
-    for (let i = 0; i < N; i++) group[i] = (i < N_PER_GROUP) ? 0 : 1;
+    for (let i = 0; i < N; i++)
+        group[i] = (i < N_PER_GROUP) ? 0 : 1;
     if (dist === "normal") {
         for (let i = 0; i < N; i++)
             y[i] = randomNormal(rng);
@@ -393,7 +401,9 @@ function generateBasePanel(dist, seed, effect = {type: "null"}, effectGroup = 1)
             const n = group[i] !== effectGroup ? n0 : g1.n;
             const p = group[i] !== effectGroup ? p0 : g1.p;
             let k = 0;
-            for (let j = 0; j < n; j++) if (rng() < p) k++;
+            for (let j = 0; j < n; j++)
+                if (rng() < p)
+                    k++;
             y[i] = (k - mu) / sigma;
         }
     }
@@ -409,8 +419,10 @@ function generateBasePanel(dist, seed, effect = {type: "null"}, effectGroup = 1)
 function finalizePanel(y, group) {
     const nGroups = Math.max(...group) + 1;
     const groups = Array.from({length: nGroups}, () => []);
-    for (let i = 0; i < y.length; i++) groups[group[i]].push(y[i]);
-    for (const g of groups) g.sort((a, b) => a - b);
+    for (let i = 0; i < y.length; i++)
+        groups[group[i]].push(y[i]);
+    for (const g of groups)
+        g.sort((a, b) => a - b);
     return {groups};
 }
 
@@ -419,26 +431,31 @@ function finalizePanel(y, group) {
 // meanD: Cohen's d for mean difference (distribution-agnostic; ~equivalent to Welch's t > 1.25, p < 0.21).
 const SEED_THRESHOLDS = {
     normal:    { extremes: 0.30 }, // 3 rejections
-    lognormal: { extremes: 0.40 }, // 13 rejections
+    lognormal: { extremes: 0.40 }, // 0.40 has 13 rejections
 };
 const MEAN_D_THRESHOLD = 0.25; // reject if Cohen's d for group means exceeds this; 38 additional rejections
 
 function isGoodSeed(seed) {
     for (const [dist, {extremes}] of Object.entries(SEED_THRESHOLDS)) {
+        if (distReps[dist] === 0)
+            continue;
         const panel = generateBasePanel(dist, seed, {type: "null"}, 0);
         const A = [], B = [];
         for (let i = 0; i < panel.y.length; i++)
             (panel.group[i] === 0 ? A : B).push(panel.y[i]);
         const yMin = Math.min(...panel.y), yMax = Math.max(...panel.y);
         const range = yMax - yMin || 1;
-        if (Math.abs(Math.max(...A) - Math.max(...B)) / range > extremes) return false;
-        if (Math.abs(Math.min(...A) - Math.min(...B)) / range > extremes) return false;
+        if (Math.abs(Math.max(...A) - Math.max(...B)) / range > extremes)
+            return false;
+        if (Math.abs(Math.min(...A) - Math.min(...B)) / range > extremes)
+            return false;
         const meanA = A.reduce((s, v) => s + v, 0) / A.length;
         const meanB = B.reduce((s, v) => s + v, 0) / B.length;
         const varA = A.reduce((s, v) => s + (v - meanA) ** 2, 0) / (A.length - 1);
         const varB = B.reduce((s, v) => s + (v - meanB) ** 2, 0) / (B.length - 1);
         const pooledSD = Math.sqrt((varA + varB) / 2) || 1;
-        if (Math.abs(meanA - meanB) / pooledSD > MEAN_D_THRESHOLD) return false;
+        if (Math.abs(meanA - meanB) / pooledSD > MEAN_D_THRESHOLD)
+            return false;
     }
     return true;
 }
@@ -460,7 +477,8 @@ const DATA_SEEDS = (() => {
     const seeds = [];
     let rejected = 0;
     for (let i = 101; seeds.length < 100; i++) {
-        if (i % 10 === 0) continue;
+        if (i % 10 === 0)
+            continue;
         if (isGoodSeed(i * 100_000))
             seeds.push(i * 100_000);
         else rejected++;
@@ -473,7 +491,8 @@ const DATA_SEEDS = (() => {
 /** ---------- Effect generators ---------- **/
 
 function applyEffect(panel, dist, effect, rng, effectGroup = 1) {
-    if (effect.type === "null") return panel;
+    if (effect.type === "null")
+        return panel;
 
     if (effect.type === "location") {
         if (dist !== "lognormal") {
@@ -569,6 +588,27 @@ function applyEffect(panel, dist, effect, rng, effectGroup = 1) {
 }
 
 /** ---------- Design ---------- **/
+
+// Build a balanced pool of nTrials effects drawn from the effects array.
+// Each effect appears floor(nTrials/effects.length) or ceil(...) times.
+// Each full or partial repetition is independently shuffled.
+function makeBalancedEffectPool(effects, nTrials, rng) {
+    const pool = [];
+    const nFull = Math.floor(nTrials / effects.length);
+    const nRemainder = nTrials % effects.length;
+    for (let i = 0; i < nFull; i++) {
+        const chunk = effects.slice();
+        shuffleInPlace(chunk, rng);
+        pool.push(...chunk);
+    }
+    if (nRemainder > 0) {
+        const chunk = effects.slice();
+        shuffleInPlace(chunk, rng);
+        pool.push(...chunk.slice(0, nRemainder));
+    }
+    return pool;
+}
+
 function makeDesign({rng}) {
     // Select which chart types this participant sees and which variant(s) of each.
     // Both are fixed for the whole session (per-participant between-subjects factors).
@@ -632,22 +672,23 @@ function makeDesign({rng}) {
     const dists = Object.keys(distEffects);
     const conditions = [];
 
-    // Assign data seeds per dist: draw the first nPerDist seeds from DATA_SEEDS (100 screened seeds
-    // always exceeds the max slot count of 60), then shuffle for random assignment to conditions.
-    const seedPools = {};
+    // Build per-distribution seed and effect pools, then assign one condition per slot.
+    const seedPools = {}, effectPools = {}, poolIdxs = {};
     for (const dist of dists) {
         const nPerDist = distReps[dist] * selectedChartTypes.length;
-        const pool = Array.from({length: nPerDist}, (_, i) => DATA_SEEDS[i % DATA_SEEDS.length]);
-        shuffleInPlace(pool, rng);
-        seedPools[dist] = {pool, idx: 0};
+        const seeds = Array.from({length: nPerDist}, (_, i) => DATA_SEEDS[i % DATA_SEEDS.length]);
+        shuffleInPlace(seeds, rng);
+        seedPools[dist] = seeds;
+        effectPools[dist] = makeBalancedEffectPool(distEffects[dist], nPerDist, rng);
+        poolIdxs[dist] = 0;
     }
 
     for (const dist of dists) {
-        const effects = distEffects[dist];
         for (let r = 0; r < distReps[dist]; r++) {
             for (const {type: chartType, options: chartOptions} of selectedChartTypes) {
-                const e = effects[Math.floor(rng() * effects.length)];
-                const dataSeed = seedPools[dist].pool[seedPools[dist].idx++];
+                const idx = poolIdxs[dist]++;
+                const e = effectPools[dist][idx];
+                const dataSeed = seedPools[dist][idx];
                 conditions.push({chartType, chartOptions, dist, effect: e, dataSeed});
             }
         }
@@ -672,7 +713,8 @@ function buildTrial(trialIdx, cond) {
 
     const raw = generateBasePanel(cond.dist, cond.dataSeed, cond.effect, cond.effectGroup);
     // Binomial effects are baked into generateBasePanel via binomialGroupParams; all others are post-hoc.
-    if (cond.dist !== "binomial") applyEffect(raw, cond.dist, cond.effect, rng, cond.effectGroup);
+    if (cond.dist !== "binomial")
+        applyEffect(raw, cond.dist, cond.effect, rng, cond.effectGroup);
 
     const panel = finalizePanel(raw.y, raw.group);
 
@@ -727,7 +769,8 @@ function getOnboardingSteps() {
 let _onboardingPanels = null;
 
 function getOnboardingPanels() {
-    if (_onboardingPanels) return _onboardingPanels;
+    if (_onboardingPanels)
+        return _onboardingPanels;
     const rng = mulberry32(0x4F4E4241); // fixed seed chosen so the similar/different training are true
     const N_SRC = 500;
 
@@ -764,9 +807,10 @@ const EXAMPLE_SEEDS = {box: 0xE0011, bands: 0xE0022, dot: 0xE0003, violin: 0xE00
 
 function buildChartTypeExamplePanel(chartType) {
     const rng = mulberry32(EXAMPLE_SEEDS[chartType] ?? 0xE0001);
-    const sigma = 0.5;
     const N = N_PER_GROUP * 2;
-    const y = Array.from({length: N}, () => Math.exp(sigma * randomNormal(rng)));
+    const y = distReps.lognormal > 0
+        ? Array.from({length: N}, () => Math.exp(0.5 * randomNormal(rng)))  // lognormal
+        : Array.from({length: N}, () => randomNormal(rng));                  // normal
     const group = Array.from({length: N}, (_, i) => i < N_PER_GROUP ? 0 : 1);
     return finalizePanel(y, group);
 }
@@ -830,17 +874,21 @@ function renderOnboardingStep() {
     UI.onboardingCanvas.style.display = "none";
     UI.onboardingThumbnails.style.display = "none";
     UI.onboardingContinueBtn.disabled = false;
+    UI.onboardingBackBtn.style.visibility = session.onboardingStep > 0 ? "visible" : "hidden";
 
     // Reserve fixed heights within each section so the canvas and Continue button
     // stay at the same vertical position across pages within a section.
     const isChartTypeSection = step.type === "chartTypeIntro" || step.type === "chartType";
     const isSamplingSection  = step.type === "sampling1" || step.type === "sampling2" || step.type === "sampling3";
     const horiz = currentOrientation() === "horizontal";
-    UI.onboardingText.style.minHeight = isChartTypeSection ? "150px" : isSamplingSection ? "100px" : "";
+    UI.onboardingText.style.minHeight = isChartTypeSection ? "150px" : isSamplingSection ? "150px" : "";
     UI.onboardingCanvasArea.style.minHeight = isChartTypeSection
         ? (horiz ? WIDTH_2_UP : HEIGHT_2_UP) + "px"
         : isSamplingSection
         ? (horiz ? WIDTH_4_UP_TRAINING : HEIGHT_4_UP_TRAINING) + "px" : "";
+    UI.onboardingCanvasArea.style.display        = step.type === "chartTypeIntro" ? "flex" : "";
+    UI.onboardingCanvasArea.style.flexDirection  = step.type === "chartTypeIntro" ? "column" : "";
+    UI.onboardingCanvasArea.style.justifyContent = step.type === "chartTypeIntro" ? "center" : "";
 
     if (step.type === "sampling1") {
         UI.onboardingTitle.textContent = "Understanding Sampling";
@@ -901,7 +949,7 @@ function renderOnboardingStep() {
         UI.onboardingTitle.textContent = "Your Task";
         UI.onboardingText.innerHTML =
             `<p>For each of the <strong>${total} chart pairs</strong>, rate how much evidence
-            they provide that groups A and B come from <strong>genuinely different sources</strong>.</p>
+            they provide that groups A and B come from <strong>genuinely different sources</strong>.</p>&nbsp;<p/>
             <table class="ob-scale-table">
                 <thead><tr><th>Rating</th><th>Meaning</th></tr></thead>
                 <tbody>
@@ -954,7 +1002,8 @@ function renderOnboardingStep() {
 }
 
 function updateBgContinueBtn() {
-    if (NOSUBMIT) return; // optional when not submitting
+    if (NOSUBMIT)
+        return; // optional when not submitting
     const bg = session.background ?? {};
     UI.onboardingContinueBtn.disabled = !BG_QUESTIONS.every(q => bg[q.key] != null);
 }
@@ -1002,11 +1051,13 @@ function updateProgress() {
 
 /** ---------- Flow ---------- **/
 function setRatingEnabled(enabled) {
-    for (const b of UI.ratingBtns) b.disabled = !enabled;
+    for (const b of UI.ratingBtns)
+        b.disabled = !enabled;
 }
 
 function ensureDesign() {
-    if (session.design) return;
+    if (session.design)
+        return;
     const rng = mulberry32((session.participantSeed ^ 0xA5A5A5A5) >>> 0);
     session.design = makeDesign({rng});
     const orientOverride = params.get("orientation");
@@ -1171,7 +1222,8 @@ function downloadResults() {
 }
 
 function copyTrialData() {
-    if (!currentTrial) return;
+    if (!currentTrial)
+        return;
     const {groups} = currentTrial.panel;
     const rows = ["y,group"];
     const labels = groups.map((_, i) => String.fromCharCode(65 + i));
@@ -1230,6 +1282,13 @@ function resetSession() {
 /** ---------- Wire up ---------- **/
 UI.introStartBtn.addEventListener("click", beginSession);
 UI.onboardingContinueBtn.addEventListener("click", advanceOnboarding);
+UI.onboardingBackBtn.addEventListener("click", () => {
+    if (session.onboardingStep > 0) {
+        session.onboardingStep--;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+        renderOnboardingStep();
+    }
+});
 UI.downloadBtn.addEventListener("click", downloadResults);
 UI.downloadDesignBtn.addEventListener("click", downloadDesign);
 UI.copyDataBtn.addEventListener("click", copyTrialData);
@@ -1237,7 +1296,10 @@ UI.resetBtn.addEventListener("click", resetSession);
 
 UI.submitCommentBtn.addEventListener("click", () => {
     const text = UI.commentField.value.trim().slice(0, 2000);
-    if (!text) { UI.commentStatus.textContent = "Please enter a comment first."; return; }
+    if (!text) {
+        UI.commentStatus.textContent = "Please enter a comment first.";
+        return;
+    }
     postComment(text);
     UI.submitCommentBtn.disabled = true;
     UI.commentField.disabled = true;

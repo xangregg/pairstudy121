@@ -9,7 +9,7 @@ This is an online graphical perception study examining how well different statis
 ## Research Questions
 
 - **Primary**: Do different chart types differ in their ability to convey distributional differences between groups?
-- **Secondary**: Do observer ratings track effect magnitude? Do distribution family and effect type moderate chart type differences?
+- **Secondary**: Do observer ratings track effect magnitude? Does effect type moderate chart type differences?
 
 ---
 
@@ -32,13 +32,13 @@ All four chart type categories appear for every participant (within-subjects); w
 
 ### Data Distributions
 
-Three base distributions generate the raw data for each trial:
+The survey app supports a mix of three base distributions to generate the raw data for each trial. However, for the current study, only the normal distribution is used.
 
 | Distribution | Proportion of trials | Notes |
-|---|---|---|
-| Normal (Gaussian) | 60% (60/100) | Standard parameterization |
-| Lognormal | 20% (20/100) | Right-skewed; rendered on normalized scale |
-| Binomial | 20% (20/100) | n = 10, p = 0.2 base; normalized to ~N(0,1) scale |
+|---|------------------|---|
+| Normal (Gaussian) | 100% (100/100)   | Standard parameterization |
+| Lognormal | 0% (0/100)       | Right-skewed; rendered on normalized scale |
+| Binomial | 0% (0/100)       | n = 10, p = 0.2 base; normalized to ~N(0,1) scale |
 
 ### Effects
 
@@ -72,13 +72,13 @@ An *effect* is a modification applied to one of the two groups to create a detec
 
 ### Effect Assignment
 
-Effects are drawn independently and uniformly at random for each trial. They are **not balanced across chart types** within a participant's session. Expected appearances per effect type per participant:
+Effects are assigned from a balanced pool. For each distribution, the effect list is replicated ⌊nTrials / nEffects⌋ times and a partial replicate of size (nTrials mod nEffects) is appended; each replicate is independently shuffled. This guarantees each effect type appears either ⌊nTrials / nEffects⌋ or ⌈nTrials / nEffects⌉ times — exact counts per participant:
 
-- Normal: ~3 (60 trials ÷ 20 effects)
-- Lognormal: ~2 (20 trials ÷ 10 effects)
-- Binomial: ~4 (20 trials ÷ 5 effects)
+- Normal: exactly 5 (100 trials ÷ 20 effects, perfectly balanced)
+- Lognormal: 0 (unused)
+- Binomial: 0 (unused)
 
-Realized counts will vary due to random sampling.
+Effects are **not balanced within chart type**: a given effect may pair with one chart type more than another within a session, though this averages out across participants.
 
 ### Effect Group
 
@@ -115,15 +115,15 @@ Response buttons are suppressed for 500 ms after each trial begins to reduce imp
 
 Each participant completes 100 trials presented in randomized order.
 
-| Factor | Levels | Trials per level |
-|--------|--------|-----------------|
-| Chart type | 4 | 25 each |
-| Distribution | Normal, Lognormal, Binomial | 60, 20, 20 |
-| Effect type | 20 / 10 / 5 (by distribution) | Random assignment per trial |
+| Factor | Levels | Trials per level          |
+|--------|--------|---------------------------|
+| Chart type | 4 | 25 each                   |
+| Distribution | Normal, Lognormal, Binomial | 100, 0, 0                 |
+| Effect type | 20 | Random assignment per trial |
 | Effect magnitude | Continuous / ordinal within type | Nested within effect type |
 | Effect group | A or B | 50 each (globally balanced) |
 
-Distribution and chart type are crossed within each participant: each combination of chart type × distribution appears with trial counts proportional to the distribution weights (normal: 15 trials per chart type; lognormal and binomial: 5 each).
+Distribution and chart type are crossed within each participant: each combination of chart type × distribution appears with trial counts proportional to the distribution weights (normal: 25 trials per chart type; lognormal and binomial: 0 each).
 
 ---
 
@@ -131,9 +131,9 @@ Distribution and chart type are crossed within each participant: each combinatio
 
 All randomization uses the mulberry32 pseudo-random number generator (32-bit LFSR). Each participant receives a random seed at first visit. All aspects of the design — chart type and variant assignments, orientation, jitter, trial order, effect draws, effectGroup assignments — are derived deterministically from that seed, ensuring full reproducibility from the participant seed alone.
 
-Data generation uses a fixed pool of 100 algorithmically screened seeds (DATA_SEEDS) that are shuffled separately per distribution and assigned to trials without replacement within a participant. With 100 seeds and at most 60 normal trials per participant, each base dataset appears at most once per participant.
+Data generation uses a fixed pool of 100 algorithmically screened seeds (DATA_SEEDS) that are shuffled separately per distribution and assigned to trials without replacement within a participant. With 100 seeds and at most 100 normal trials per participant, each base dataset appears at most once per participant.
 
-Seeds are selected by scanning integer multiples of 100,000 (starting at 10,100,000) and retaining those that pass two null-balance checks applied independently for both the normal and lognormal distributions:
+Seeds are selected by scanning integer multiples of 100,000 (starting at 10,100,000) and retaining those that pass two null-balance checks applied independently for both the normal and lognormal, if in use, distributions:
 
 1. **Extremes check:** the difference between groups A and B in their maximum values, and separately in their minimum values, must each be less than a threshold fraction of the combined range (0.30 for normal, 0.40 for lognormal). This screens out seeds where one group's tail placement is deceptively extreme relative to the other.
 2. **Mean check (Cohen's d):** the standardized mean difference between groups A and B must satisfy |d| < 0.25, where d is computed using the pooled sample standard deviation. This threshold is distribution-agnostic and corresponds approximately to a Welch's t-statistic of 1.25 (two-tailed p ≈ 0.21). Seeds with a larger mean difference would look deceptively shifted under a null effect.
@@ -148,14 +148,14 @@ Per participant:
 
 | Breakdown | Count |
 |-----------|-------|
-| Total trials | 100 |
-| Per chart type | 25 |
-| Per chart type × Normal | 15 |
-| Per chart type × Lognormal | 5 |
-| Per chart type × Binomial | 5 |
-| Expected appearances per Normal effect type | ~3 |
-| Expected appearances per Lognormal effect type | ~2 |
-| Expected appearances per Binomial effect type | ~4 |
+| Total trials | 100   |
+| Per chart type | 25    |
+| Per chart type × Normal | 25    |
+| Per chart type × Lognormal | 0     |
+| Per chart type × Binomial | 0     |
+| Expected appearances per Normal effect type | ~5    |
+| Expected appearances per Lognormal effect type | ~0    |
+| Expected appearances per Binomial effect type | ~0    |
 
 ---
 
@@ -166,7 +166,8 @@ Given the ordinal response and repeated-measures structure, a **cumulative link 
 **Fixed effects to consider:**
 - Chart type (primary factor; 4 levels, within-subjects)
 - Effect type and/or effect magnitude (covariate; captures stimulus difficulty)
-- Distribution family
+- Distribution family (only is lognormal or binomial is reintroduced)
+- Effect group (within-subjects
 - Display orientation (between-subjects)
 - Jitter method (between-subjects; note: only affects dot plot trials)
 - Background familiarity covariates (from pre-study questionnaire)
@@ -189,5 +190,3 @@ Given the ordinal response and repeated-measures structure, a **cumulative link 
 3. **Variant × chart type conflation.** Variants within a chart type category differ meaningfully in information content (e.g., box plot alone vs. box plot with individual data points overlaid). Analyses that collapse across variants within a category may mask substantial variant effects; analyses that treat variants as separate levels expand the factor considerably.
 
 4. **effectGroup balance is global, not stratified.** Within any chart type or distribution subset, effectGroup assignment may deviate from 50/50, though large deviations are unlikely given 25 trials per chart type.
-
-5. ~~**DATA_SEEDS reuse.**~~ Resolved. The pool of 100 screened seeds exceeds the maximum number of trials per distribution (60 normal, 20 lognormal, 20 binomial), so each base dataset appears at most once per participant. No seed-level non-independence remains.
