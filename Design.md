@@ -8,31 +8,58 @@ This is an online graphical perception study examining how well different statis
 
 ## Research Questions
 
-- **Primary**: Do different chart types differ in their ability to convey distributional differences between groups?
-- **Secondary**: Do observer ratings track effect magnitude? Does effect type moderate chart type differences?
+- How do different chart types compare in their ability to convey distributional differences between groups:
+  - overall?
+  - for each specific effect type?
+- For each chart type and effect type, how does the rating relate to the effect magnitude? Especially, it there a limit of perceptibility for each combination?
 
 ---
 
-## Stimuli
+## Study Factors
 
-Each trial presents a single canvas containing two statistical charts side by side (labeled A and B). Each chart displays 50 data values sampled from a specified distribution. In trials with a non-null effect, one group has an introduced difference in location, scale, or shape; in null trials both groups are drawn from the same base distribution.
+Each trial presents a single canvas containing two statistical charts of the same type side by side (labeled A and B). Each chart respresents 50 data values sampled from a specified distribution. In trials with a non-null effect, one group has an introduced difference in location, scale, or shape; in null trials both groups are drawn from the same base distribution.
+
+<figure style="text-align: center">
+    <img src="images/trialbox.png" width="500">
+    <figcaption>Example trial showing a box plot pair</figcaption>
+</figure>
 
 ### Chart Types
 
 Four chart type categories are included. Each participant is randomly assigned one variant from each category; the assigned variant is fixed for the entire session.
 
-| Category | Variants available |
-|----------|--------------------|
-| Box      | Box plot; Box plot with dots; Range bar |
-| Bands    | 4 quantile/density band configurations |
-| Dot      | Dot plot; Dot plot with median |
-| Violin   | Violin plot; Violin with box; Violin with dots; Violin with median |
+| Category | Variant | Description                                                                                                                                                                                 |
+|----------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Box | Box plot | Middle 50% shown as a rectangle with a median line. Whiskers extend to values within 1.5× the IQR; more extreme values shown as outlier dots.                                               |
+| Box | Box plot with dots | Same as box plot, with all individual data values overlaid as dots.                                                                                                                         |
+| Box | Range bar | Middle 50% shown as a rectangle with a wide median line. Thin lines extend to the full data range (no outlier trimming).                                                                    |
+| Bands | Central bands (66%, 90%, 99%) with median | Nested quantile bands: darkest contains middle 66% of values, next 90%, outer 99%. Median line shown. Outliers are not shown.                                                               |
+| Bands | Density bands (50%, 90%, 99%) with mode | HDR bands: darkest contains densest 50% of values, next 90%, outer 99%. Mode line shown; values outside the 99% band shown as dots. Bands may be disconnected for multimodal distributions. |
+| Bands | Density bands (5%, 50%, 90%) | HDR bands: darkest contains densest 5%, next 50%, outer 90%. Values outside the 90% band shown as dots. Bands may be disconnected.                                                          |
+| Bands | Density bands (33%, 67%, 100%) | HDR bands: darkest contains densest 33%, next 67%, outer band covers all remaining values. Bands may be disconnected.                                                                       |
+| Dot | Dot plot | Each dot represents one data value; dots are spread horizontally to reduce overlap (according to jitter factor).                                                                            |
+| Dot | Dot plot with median | Same as dot plot, with a horizontal line marking the median.                                                                                                                                |
+| Violin | Violin plot | Smooth symmetric outline traces the distribution shape; width encodes local density.                                                                                                        |
+| Violin | Violin plot with box | Violin outline with a box plot overlaid inside showing the median and middle 50% range.                                                                                                     |
+| Violin | Violin plot with dots | Violin outline with individual data values overlaid as dots within the shape.                                                                                                               |
+| Violin | Violin plot with median | Violin outline with a line marking the median.                                                                                                                                              |
 
 All four chart type categories appear for every participant (within-subjects); which specific variant is shown within each category is randomly assigned (between-subjects).
 
+### Jitter Types
+
+Jitter controls how dots are spread horizontally (assuming vertical charts of ease of this description) to reduce overlap. One jitter method is randomly assigned per participant and applied consistently to all dot-based chart types (including box or violin plots with overlaid dots).
+
+| Jitter | Description                                                                                                                                             |
+|--------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Random | Each dot is placed at a uniform random horizontal offset within a fixed half-width, with a small number of candidate positions tried to reduce overlap. |
+| Wilkinson | Dots at similar values are binned by proximity, then stacked symmetrically within each bin. Not precisely Wilkinson's algorithm,                        |
+| Beeswarm | Dots are placed one at a time, in ascending value order, at the horizontal position closest to center that does not overlap any already-placed dot.     |
+| Density random | Like random, but the horizontal range available to each dot scales with the local KDE density, keeping dots within the violin shape.                    |
+
 ### Data Distributions
 
-The survey app supports a mix of three base distributions to generate the raw data for each trial. However, for the current study, only the normal distribution is used.
+The survey app supports up to three base distributions to generate the raw data for each trial. However, for the current study, only the normal distribution is used.
 
 | Distribution | Proportion of trials | Notes |
 |---|------------------|---|
@@ -42,7 +69,7 @@ The survey app supports a mix of three base distributions to generate the raw da
 
 ### Effects
 
-An *effect* is a modification applied to one of the two groups to create a detectable difference. Each trial draws one effect uniformly at random from the applicable distribution's effect pool. The null effect (no modification) is included in each pool.
+An *effect* is a modification applied to one of the two groups to create a potentially detectable difference. Each trial draws one effect uniformly at random from the applicable distribution's effect pool. The null effect (no modification) is included in each pool.
 
 **Normal distribution — 20 effect types:**
 
@@ -84,6 +111,38 @@ Effects are **not balanced within chart type**: a given effect may pair with one
 
 "Effect group" indicates which of the two displayed groups (A or B) receives the effect. Exactly 50 of each participant's 100 trials assign the effect to group A; 50 assign it to group B. This balance is enforced globally across all 100 trials via a shuffled binary assignment vector. Balance within chart type or distribution subsets is not explicitly enforced but is expected to be approximately 50/50 given 25 trials per chart type.
 
+### Participant Background
+
+Before the main study begins, participants complete a brief self-report questionnaire collected as potential covariates for analysis.
+
+**Reading frequency** (Rarely / Occasionally / Regularly):
+- Bar charts and infographics
+- Statistical charts
+
+**Familiarity** (Unfamiliar / Somewhat / Very familiar):
+- Mean
+- Standard deviation
+- Median
+- Quartile
+- Box plot
+- Population sampling
+- Linear regression
+
+### Training
+
+All participants complete the same onboarding sequence before their first trial. The sequence is not adaptive and cannot be skipped. Steps proceed in this order:
+
+1. **Background questionnaire** — the familiarity and frequency questions above. The Continue button is disabled until all questions are answered.
+2. **Understanding Sampling (3 pages)** — introduces the concept that each chart shows a random sample from a larger source. Page 1 shows one source and one sample; page 2 shows one source and three samples to illustrate within-source variation; page 3 shows two sources with one sample each to illustrate between-source differences.
+3. **Chart Types** — an overview page showing thumbnail examples of all four assigned chart types, followed by one dedicated page per chart type explaining how to read it, with an example pair drawn from the same source. The training is only for the variants of the chart tye that the participant will see in the study.
+4. **Response scale** — explains the 4-point rating scale and its intended meaning.
+
+<figure style="text-align: center">
+    <img src="images/sampling2.png" width="400">
+    <figcaption>Second sampling training page.</figcaption>                
+</figure>   
+The chart-type training pages are ordered to match the sequence in which each chart type first appears in that participant's randomized trial list. Additionally, each trial page shows a brief summary of the chart type details, such as specific cut-offs in use for band charts.
+
 ---
 
 ## Response Variable
@@ -97,7 +156,9 @@ Participants respond on a 4-point ordinal scale after each trial:
 | 3 | Moderate evidence | Noticeably different in some way; meaningful uncertainty remains |
 | 4 | Strong evidence | Clearly different; surprising if random sampling alone produced this |
 
-Response buttons are suppressed for 500 ms after each trial begins to reduce impulsive responses.
+Response buttons are suppressed for 500 ms after each trial begins to reduce accidental and impulsive responses. Additionally, the button's hover highlight is disabled until the mouse is moved to reduce anchoring bias.
+
+In addition to the response and design factors, key summary statistics for each trial are also recorded. Though the entire trial data sets can be recovered from the seed, these measures are a convenience for analysis and reporting purposes. An analysis may prefer to use, for instance, the actual mean difference rather than the effect magnitude.
 
 ---
 
@@ -142,23 +203,6 @@ These criteria ensure that null-effect trials show no systematic group differenc
 
 ---
 
-## Trial Count and Replication
-
-Per participant:
-
-| Breakdown | Count |
-|-----------|-------|
-| Total trials | 100   |
-| Per chart type | 25    |
-| Per chart type × Normal | 25    |
-| Per chart type × Lognormal | 0     |
-| Per chart type × Binomial | 0     |
-| Expected appearances per Normal effect type | ~5    |
-| Expected appearances per Lognormal effect type | ~0    |
-| Expected appearances per Binomial effect type | ~0    |
-
----
-
 ## Suggested Analysis
 
 Given the ordinal response and repeated-measures structure, a **cumulative link mixed model (CLMM)** or **ordinal logistic mixed model** is appropriate.
@@ -187,6 +231,6 @@ Given the ordinal response and repeated-measures structure, a **cumulative link 
 
 2. **Jitter factor is partially confounded with chart type.** Jitter only affects dot plot rendering; its effect on other chart types is by definition zero. This limits the interpretability of a jitter main effect and necessitates a jitter × chart type interaction term if jitter is of interest.
 
-3. **Variant × chart type conflation.** Variants within a chart type category differ meaningfully in information content (e.g., box plot alone vs. box plot with individual data points overlaid). Analyses that collapse across variants within a category may mask substantial variant effects; analyses that treat variants as separate levels expand the factor considerably.
+3. **Variant × chart type conflation.** Variants within a chart type category differ meaningfully in information content (e.g., box plot alone vs. box plot with individual data points overlaid). Analyses that collapse across variants within a category may mask substantial variant effects; analyses that treat variants as separate levels expand the factor considerably. 
 
 4. **effectGroup balance is global, not stratified.** Within any chart type or distribution subset, effectGroup assignment may deviate from 50/50, though large deviations are unlikely given 25 trials per chart type.

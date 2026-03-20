@@ -255,21 +255,21 @@ const CHART_TYPE_CATALOG = [
     {
         type: "box", variants: [
             {
-                description: "Box plot",
+                description: "Box plot showing median, quartiles, and outlier whiskers",
                 explanation: () => `A box plot shows the middle 50% of values as a rectangle, with a ${horizontalWord()} line at the median.` +
                     ` Thin ${verticalWord()} lines (whiskers) extend to values within 1.5 times the box ${heightWord()}` +
                     `; more extreme values (outliers) appear as individual dots.`,
                 showDots: false
             },
             {
-                description: "Box plot with dots",
+                description: "Box plot showing median, quartiles, and outlier whiskers",
                 explanation: () => `A box plot shows the middle 50% of values as a rectangle, with a ${horizontalWord()} line at the median.` +
                     ` Thin ${verticalWord()} lines (whiskers) extend to values within 1.5 times the box ${heightWord()}` +
                     `; more extreme values are potential outliers.`,
                 showDots: true
             },
             {
-                description: "Range bar",
+                description: "Range bar showing median, quartiles, and range",
                 explanation: () => `A range bar shows the middle 50% of values as a rectangle, with a thick ${horizontalWord()} line at the median.` +
                     ` Thin ${verticalWord()} lines extend to cover the range of data values.`,
                 whiskers: "range", widerMedian: true, showDots: false
@@ -333,20 +333,20 @@ const CHART_TYPE_CATALOG = [
     {
         type: "violin", variants: [
             {
-                description: "Violin plot",
+                description: "Violin plot showing smooth density",
                 explanation: () => `A violin plot traces the full distribution shape as a smooth symmetric outline. ` +
                     `Wider sections indicate where values are more common.`,
                 showDots: false, showMedian: false
             },
             {
-                description: "Violin plot with box",
+                description: "Violin plot showing smooth density with box plot",
                 explanation: () => `A violin outline traces the full distribution shape as a smooth symmetric outline. ` +
                     `Wider sections indicate where values are more common. ` +
                     `A box plot is overlaid inside showing the median and middle 50% range.`,
                 showDots: false, showMedian: false, showBox: true
             },
             {
-                description: "Violin plot with dots",
+                description: "Violin plot showing smooth density",
                 explanation: () => `A violin outline traces the full distribution shape as a smooth symmetric outline. ` +
                     `Wider sections indicate where values are more common. ` +
                     `Individual data values are shown as dots.`,
