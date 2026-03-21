@@ -2,103 +2,10 @@
 
 import {renderChart, quantileSorted} from "./renderers.js";
 import {mulberry32, hashStringToUint32, randomNormal, shuffleInPlace} from "./utils.js";
-
-
-/** ---------- Supabase ---------- **/
-const SUPA_URL = "https://pidcedqlfqtvfqncaysc.supabase.co";    // project url
-const SUPA_KEY = "sb_publishable_Xfi2G-RyjGXc8PhGOu2YWA_iQfbnpyE"; // publishable key
-
-function postResponse(trial, rating, rtMs, finishedAt = null, stats = null) {
-    const cond = trial.condition;
-    const row = {
-        participant_id: session.participantId,
-        trial_index: trial.trialIdx,
-        trial_seed: trial.trialSeed,
-        data_seed: cond.dataSeed,
-        chart_type: cond.chartType,
-        chart_variant: JSON.stringify(cond.chartOptions ?? {}),
-        orientation: session.design.orientation,
-        jitter: session.design.jitter,
-        distribution: cond.dist,
-        effect_type: cond.effect.type,
-        effect: cond.effect,
-        effect_group: cond.effectGroup,
-        rating,
-        rt_ms: rtMs,
-        viewport_w: window.innerWidth,
-        viewport_h: window.innerHeight,
-        finished_at: finishedAt,
-    };
-    if (stats) {
-        row.a_mean = stats.a.mean; row.a_sd = stats.a.sd;
-        row.a_min = stats.a.min; row.a_q1 = stats.a.q1; row.a_med = stats.a.med; row.a_q3 = stats.a.q3; row.a_max = stats.a.max;
-        row.b_mean = stats.b.mean; row.b_sd = stats.b.sd;
-        row.b_min = stats.b.min; row.b_q1 = stats.b.q1; row.b_med = stats.b.med; row.b_q3 = stats.b.q3; row.b_max = stats.b.max;
-    }
-    if (NOSUBMIT)
-        return;
-    fetch(`${SUPA_URL}/rest/v1/responses`, {
-        method: "POST",
-        headers: {
-            "apikey": SUPA_KEY,
-            "Authorization": `Bearer ${SUPA_KEY}`,
-            "Content-Type": "application/json",
-            "Prefer": "return=minimal"
-        },
-        body: JSON.stringify(row)
-    }).catch(() => {
-    }); // fire-and-forget; silently ignore network errors
-}
-
-function postSession() {
-    const bg = session.background ?? {};
-    const row = {
-        participant_id: session.participantId,
-        started_at: session.startedAtISO,
-        participant_group: params.get("group") ?? null,
-        // background questionnaire — frequency (1=Rarely, 2=Occasionally, 3=Regularly)
-        bg_viz_frequency:   bg.vizFrequency   ?? null,
-        bg_chart_frequency: bg.chartFrequency ?? null,
-        // background questionnaire — familiarity (1=Unfamiliar, 2=Somewhat familiar, 3=Very familiar)
-        bg_mean:         bg.mean         ?? null,
-        bg_sd:           bg.sd           ?? null,
-        bg_median:       bg.median       ?? null,
-        bg_quartile:     bg.quartile     ?? null,
-        bg_box_plot:     bg.boxPlot      ?? null,
-        bg_sampling:     bg.sampling     ?? null,
-        bg_significance: bg.linearRegression ?? null,
-        // between-subjects design factors
-        orientation: session.design.orientation,
-        jitter: session.design.jitter,
-        // browser / device metadata
-        user_agent: navigator.userAgent,
-        language: navigator.language,
-        languages: JSON.stringify([...navigator.languages]),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        screen_w: screen.width,
-        screen_h: screen.height,
-        color_depth: screen.colorDepth,
-        pixel_ratio: devicePixelRatio,
-        platform: navigator.userAgentData?.platform ?? navigator.platform,
-        touch: navigator.maxTouchPoints > 0,
-        prefers_dark: window.matchMedia("(prefers-color-scheme: dark)").matches,
-        viewport_w: window.innerWidth,
-        viewport_h: window.innerHeight,
-    };
-    if (NOSUBMIT)
-        return;
-    fetch(`${SUPA_URL}/rest/v1/sessions`, {
-        method: "POST",
-        headers: {
-            "apikey": SUPA_KEY,
-            "Authorization": `Bearer ${SUPA_KEY}`,
-            "Content-Type": "application/json",
-            "Prefer": "return=minimal"
-        },
-        body: JSON.stringify(row)
-    }).catch(() => {
-    });
-}
+import {N_PER_GROUP, STORAGE_KEY, RATING_DELAY_MS, JITTER_CATALOG,
+    DIST_REPS, DIST_REPS_TESTING, SEED_THRESHOLDS, MEAN_D_THRESHOLD} from "./config.js";
+import {buildCatalog} from "./catalog.js";
+import {loadOrCreateSession, postResponse, postSession, postComment} from "./database.js";
 
 /** ---------- Background questionnaire ---------- **/
 const BG_FREQ_OPTIONS = [
@@ -147,44 +54,9 @@ const NOSUBMIT = params.has("nosubmit") || !!SEEDREVIEW_DIST;
 
 const N_CHART_TYPES = TESTING ? Infinity : 4;
 const N_VARIANT_TYPES = TESTING ? Infinity : 1;
-// Number of reps per dist — tune to control trial count proportions
-// const distReps0 = {normal: 1, lognormal: 1, binomial: 1};
-const distReps = TESTING
-    ? {normal: 3, lognormal: 0, binomial: 0}
-    : {normal: 25, lognormal: 0, binomial: 0};
-
-const RATING_DELAY_MS = 500;   // ms before rating buttons activate
-const JITTER_CATALOG = ["random", "wilkinson", "beeswarm", "density random"];
+const distReps = TESTING ? DIST_REPS_TESTING : DIST_REPS;
 
 /** ---------- Session storage ---------- **/
-const STORAGE_KEY = "single_panel_study_v15";
-
-function newParticipantId() {
-    return "P" + Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
-}
-
-function loadOrCreateSession() {
-    const urlPid = new URLSearchParams(window.location.search).get("pid");
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-        try {
-            const saved = JSON.parse(raw);
-            // Resume saved session unless a different pid was requested via URL
-            if (!urlPid || saved.participantId === urlPid)
-                return saved;
-        } catch {
-        }
-    }
-    const participantId = urlPid ?? newParticipantId();
-    const participantSeed = hashStringToUint32(participantId);
-    const session = {
-        participantId, participantSeed,
-        startedAtISO: null, finishedAtISO: null,
-        design: null, onboardingStep: 0, trialIndex: 0, results: []
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-    return session;
-}
 
 let session = loadOrCreateSession();
 
@@ -227,141 +99,15 @@ let currentTrial = null;
 let trialStartPerf = null;
 
 /** ---------- Base data generation ---------- **/
-const N_PER_GROUP = 50;
 
 // DATA_SEEDS is computed after generateBasePanel (defined below)
-
-// Orientation-aware direction words — must be called at render time, not at catalog init time.
-// function names match vertical chart orientation
-function verticalWord()   { return currentOrientation() === "vertical" ? "vertical"   : "horizontal"; }
-function horizontalWord() { return currentOrientation() === "vertical" ? "horizontal" : "vertical";   }
-function heightWord()     { return currentOrientation() === "vertical" ? "height"     : "width";      }
-
-function jitterDesc(jitter) {
-    if (jitter === "wilkinson")
-        return "Dots at similar values are aligned and stacked in a symmetric pattern.";
-    if (jitter === "beeswarm")
-        return "Dots spread to each side in a balanced pattern to minimize overlap.";
-    if (jitter === "density random")
-        return "Dots spread more widely where values are densely packed.";
-    return "Dots at similar values are spread apart to reduce overlap."; // "random"
-}
 
 // Each entry lists display variants for that chart type.
 // At design time, N_CHART_TYPES types are chosen per participant (seeded shuffle),
 // and one variant is picked per type — both are between-subjects factors.
 // explanation must be a function (called at render time) so orientation words resolve correctly.
-const CHART_TYPE_CATALOG = [
-    {
-        type: "box", variants: [
-            {
-                description: "Box plot showing median, quartiles, and outlier whiskers",
-                explanation: () => `A box plot shows the middle 50% of values as a rectangle, with a ${horizontalWord()} line at the median.` +
-                    ` Thin ${verticalWord()} lines (whiskers) extend to values within 1.5 times the box ${heightWord()}` +
-                    `; more extreme values (outliers) appear as individual dots.`,
-                showDots: false
-            },
-            {
-                description: "Box plot showing median, quartiles, and outlier whiskers",
-                explanation: () => `A box plot shows the middle 50% of values as a rectangle, with a ${horizontalWord()} line at the median.` +
-                    ` Thin ${verticalWord()} lines (whiskers) extend to values within 1.5 times the box ${heightWord()}` +
-                    `; more extreme values are potential outliers.`,
-                showDots: true
-            },
-            {
-                description: "Range bar showing median, quartiles, and range",
-                explanation: () => `A range bar shows the middle 50% of values as a rectangle, with a thick ${horizontalWord()} line at the median.` +
-                    ` Thin ${verticalWord()} lines extend to cover the range of data values.`,
-                whiskers: "range", widerMedian: true, showDots: false
-            },
-        ]
-    },
-    {
-        type: "bands", variants: [
-            {
-                description: "Central bands (66%, 90%, 99%) with median",
-                explanation: () => `Nested bands show where the data falls: the darkest inner band contains the middle 66% of values, ` +
-                    `the next contains 90%, and the outer band contains 99%. A ${horizontalWord()} line marks the median. ` +
-                    `Any values beyond the outer 99% region are not shown.`,
-                bandType: "quantile", cutoffs: [0.66, 0.90, 0.99], showMedian: true, showMode: false, showDots: false
-            },
-            {
-                description: "Density bands (50%, 90%, 99%) with mode",
-                explanation: () => `Shaded bands show where values are most densely concentrated. ` +
-                    `The darkest shade contains the densest 50% of values; ` +
-                    `the next shade contains 90%, and the lightest shade contains 99%. ` +
-                    `Shaded regions may be disconnected. A ${horizontalWord()} line marks the point of highest density. ` +
-                    `Any values outside of those regions are shown as dots.`,
-                bandType: "hdr", cutoffs: [0.50, 0.90, 0.99], showMedian: false, showMode: true
-            },
-            {
-                description: "Density bands (5%, 50%, 90%)",
-                explanation: () => `Shaded bands show where values are most densely concentrated. ` +
-                    `The darkest shade contains the densest 5% of values; ` +
-                    `the next shade contains 50%, and the lightest shade contains 90%. ` +
-                    `Shaded regions may be disconnected. ` +
-                    `Any values outside of those regions are shown as dots.`,
-                bandType: "hdr", cutoffs: [0.05, 0.50, 0.90], showMedian: false, showMode: false
-            },
-            {
-                description: "Density bands (33%, 67%, 100%)",
-                explanation: () => `Shaded bands show where values are most densely concentrated. ` +
-                    `The darkest shade contains the densest 33% of values; ` +
-                    `the next shade contains 67%, and the lightest shade contains all remaining values. ` +
-                    `Shaded regions may be disconnected.`,
-                bandType: "hdr", cutoffs: [1. / 3, 2. / 3, 1.00], showMedian: false, showMode: false
-            },
-        ]
-    },
-    {
-        type: "dot", variants: [
-            {
-                description: "Dot plot with median",
-                explanation: () => `Each dot represents one data value. ` +
-                    `${jitterDesc(session.design.jitter)} ` +
-                    `A ${horizontalWord()} line marks the median.`,
-                showMedian: true
-            },
-            {
-                description: "Dot plot",
-                explanation: () => `Each dot represents one data value. ` +
-                    `${jitterDesc(session.design.jitter)}`,
-                showMedian: false
-            },
-        ]
-    },
-    {
-        type: "violin", variants: [
-            {
-                description: "Violin plot showing smooth density",
-                explanation: () => `A violin plot traces the full distribution shape as a smooth symmetric outline. ` +
-                    `Wider sections indicate where values are more common.`,
-                showDots: false, showMedian: false
-            },
-            {
-                description: "Violin plot showing smooth density with box plot",
-                explanation: () => `A violin outline traces the full distribution shape as a smooth symmetric outline. ` +
-                    `Wider sections indicate where values are more common. ` +
-                    `A box plot is overlaid inside showing the median and middle 50% range.`,
-                showDots: false, showMedian: false, showBox: true
-            },
-            {
-                description: "Violin plot showing smooth density",
-                explanation: () => `A violin outline traces the full distribution shape as a smooth symmetric outline. ` +
-                    `Wider sections indicate where values are more common. ` +
-                    `Individual data values are shown as dots.`,
-                showDots: true, showMedian: false
-            },
-            {
-                description: "Violin plot with median",
-                explanation: () => `A violin outline traces the full distribution shape as a smooth symmetric outline. ` +
-                    `Wider sections indicate where values are more common. ` +
-                    `A ${horizontalWord()} line shows the median value.`,
-                showDots: false, showMedian: true
-            },
-        ]
-    },
-];
+// Built after currentOrientation is defined (see below).
+let CHART_TYPE_CATALOG;
 
 function binomialGroupParams(n0, p0, effect) {
     if (effect.type === "location") {
@@ -429,12 +175,6 @@ function finalizePanel(y, group) {
 // Auto-screen candidate seeds: reject if groups differ too much under null effect.
 // extremes: max/min difference as a fraction of combined range (range-based; captures tail placement).
 // meanD: Cohen's d for mean difference (distribution-agnostic; ~equivalent to Welch's t > 1.25, p < 0.21).
-const SEED_THRESHOLDS = {
-    normal:    { extremes: 0.30 }, // 3 rejections
-    lognormal: { extremes: 0.40 }, // 0.40 has 13 rejections
-};
-const MEAN_D_THRESHOLD = 0.25; // reject if Cohen's d for group means exceeds this; 38 additional rejections
-
 function isGoodSeed(seed) {
     for (const [dist, {extremes}] of Object.entries(SEED_THRESHOLDS)) {
         if (distReps[dist] === 0)
@@ -1024,6 +764,7 @@ function currentOrientation() {
     const o = params.get("orientation");
     return (o === "horizontal" || o === "vertical") ? o : session.design.orientation;
 }
+CHART_TYPE_CATALOG = buildCatalog(currentOrientation, () => session);
 
 function renderTrial(trial) {
     const orientation = currentOrientation();
@@ -1115,7 +856,7 @@ function beginSession() {
 }
 
 function startStudy() {
-    postSession(); // fires once; re-entries after onboarding resumption are silently rejected by the DB unique constraint on participant_id
+    postSession(session, params.get("group"), NOSUBMIT); // fires once; re-entries after onboarding resumption are silently rejected by the DB unique constraint on participant_id
     UI.downloadBtn.disabled = UI.downloadDesignBtn.disabled = false;
     showTrial();
     nextTrial();
@@ -1151,23 +892,6 @@ function finishStudy() {
     showCompletion();
 }
 
-function postComment(text) {
-    if (NOSUBMIT) return;
-    fetch(`${SUPA_URL}/rest/v1/comments`, {
-        method: "POST",
-        headers: {
-            "apikey": SUPA_KEY,
-            "Authorization": `Bearer ${SUPA_KEY}`,
-            "Content-Type": "application/json",
-            "Prefer": "return=minimal"
-        },
-        body: JSON.stringify({
-            participant_id: session.participantId,
-            comment: text,
-            submitted_at: new Date().toISOString()
-        })
-    }).catch(() => {});
-}
 
 function recordResponse(rating) {
     const rtMs = Math.round(performance.now() - trialStartPerf);
@@ -1186,7 +910,7 @@ function recordResponse(rating) {
     });
     session.trialIndex = currentTrial.trialIdx + 1;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-    postResponse(currentTrial, rating, rtMs, finishedAt, stats);
+    postResponse(session, currentTrial, rating, rtMs, finishedAt, stats, NOSUBMIT);
     setRatingEnabled(false);
     nextTrial();
 }
@@ -1300,7 +1024,7 @@ UI.submitCommentBtn.addEventListener("click", () => {
         UI.commentStatus.textContent = "Please enter a comment first.";
         return;
     }
-    postComment(text);
+    postComment(session, text, NOSUBMIT);
     UI.submitCommentBtn.disabled = true;
     UI.commentField.disabled = true;
     UI.commentStatus.textContent = "Comment submitted — thank you!";
