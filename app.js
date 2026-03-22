@@ -6,42 +6,7 @@ import {N_PER_GROUP, STORAGE_KEY, RATING_DELAY_MS, JITTER_CATALOG,
     DIST_REPS, DIST_REPS_TESTING, SEED_THRESHOLDS, MEAN_D_THRESHOLD} from "./config.js";
 import {buildCatalog} from "./catalog.js";
 import {loadOrCreateSession, postResponse, postSession, postComment} from "./database.js";
-
-/** ---------- Background questionnaire ---------- **/
-const BG_FREQ_OPTIONS = [
-    { value: 1, label: "Rarely" },
-    { value: 2, label: "Occasionally" },
-    { value: 3, label: "Regularly" },
-];
-const BG_FAM_OPTIONS = [
-    { value: 1, label: "Unfamiliar" },
-    { value: 2, label: "Somewhat" },
-    { value: 3, label: "Very familiar" },
-];
-const BG_SECTIONS = [
-    {
-        heading: "How often do you read...",
-        questions: [
-            { key: "vizFrequency",   label: "Bar charts / infographics" },
-            { key: "chartFrequency", label: "Statistical charts" },
-        ],
-        options: BG_FREQ_OPTIONS,
-    },
-    {
-        heading: "How familiar are you with...",
-        questions: [
-            { key: "mean",         label: "Mean" },
-            { key: "sd",           label: "Standard deviation" },
-            { key: "median",       label: "Median" },
-            { key: "quartile",     label: "Quartile" },
-            { key: "boxPlot",      label: "Box plot" },
-            { key: "sampling",     label: "Population sampling" },
-            { key: "linearRegression", label: "Linear regression" },
-        ],
-        options: BG_FAM_OPTIONS,
-    },
-];
-const BG_QUESTIONS = BG_SECTIONS.flatMap(s => s.questions);
+import {BG_QUESTIONS, yourTaskHTML, backgroundHTML, RATING_SCALE, TRIAL_QUESTION} from "./question.js";
 
 /** ---------- Config ---------- **/
 const DEFAULT_TESTING = false;
@@ -61,6 +26,19 @@ const distReps = TESTING ? DIST_REPS_TESTING : DIST_REPS;
 let session = loadOrCreateSession();
 
 /** ---------- UI ---------- **/
+
+// Populate trial question and rating buttons from question.js so all text lives in one place.
+document.getElementById("trialQuestion").textContent = TRIAL_QUESTION;
+const ratingRow = document.querySelector(".rating-row");
+RATING_SCALE.forEach((r, i) => {
+    const btn = document.createElement("button");
+    btn.className = "ratingBtn";
+    btn.dataset.rating = String(i + 1);
+    btn.disabled = true;
+    btn.innerHTML = `<span class="label">${r.label.replace(" ", "<br/>")}</span>`;
+    ratingRow.appendChild(btn);
+});
+
 const UI = {
     introPage: document.getElementById("introPage"),
     onboardingPage: document.getElementById("onboardingPage"),
@@ -560,12 +538,22 @@ const HEIGHT_2_UP = 500;
 const WIDTH_4_UP_TRAINING = 500;  // 4-panel sampling canvas (wider than the standard 2-up)
 const HEIGHT_4_UP_TRAINING = 500; // same height as the standard 2-up
 
+const MIN_ONBOARDING_CANVAS_HEIGHT = 200;
+const ONBOARDING_CHROME_HEIGHT = 350; // approx px reserved for title, counter, text, nav, padding
+
+// Returns the max pixel height the onboarding canvas should display at, to fit in the viewport.
+function onboardingCanvasMaxHeight() {
+    return Math.max(MIN_ONBOARDING_CANVAS_HEIGHT, window.innerHeight - ONBOARDING_CHROME_HEIGHT);
+}
+
 function renderSamplingCanvas(panel, labels) {
     const c = UI.onboardingCanvas;
     const horiz = currentOrientation() === "horizontal";
     c.width = horiz ? HEIGHT_4_UP_TRAINING : WIDTH_4_UP_TRAINING;
     c.height = horiz ? WIDTH_4_UP_TRAINING : HEIGHT_4_UP_TRAINING;
-    c.style.maxWidth = c.width + "px";
+    c.style.maxHeight = onboardingCanvasMaxHeight() + "px";
+    c.style.maxWidth = "";
+    c.style.width = "auto";
     c.style.display = "block";
     let mn = Infinity, mx = -Infinity;
     for (const g of panel.groups) {
@@ -584,7 +572,9 @@ function renderChartTypeCanvas(ct) {
     const horiz = currentOrientation() === "horizontal";
     c.width = horiz ? HEIGHT_2_UP : WIDTH_2_UP;
     c.height = horiz ? WIDTH_2_UP : HEIGHT_2_UP;
-    c.style.maxWidth = c.width + "px";
+    c.style.maxHeight = onboardingCanvasMaxHeight() + "px";
+    c.style.maxWidth = "";
+    c.style.width = "auto";
     c.style.display = "block";
     const panel = buildChartTypeExamplePanel(ct.type);
     let mn = Infinity, mx = -Infinity;
@@ -622,10 +612,10 @@ function renderOnboardingStep() {
     const isSamplingSection  = step.type === "sampling1" || step.type === "sampling2" || step.type === "sampling3";
     const horiz = currentOrientation() === "horizontal";
     UI.onboardingText.style.minHeight = isChartTypeSection ? "150px" : isSamplingSection ? "150px" : "";
-    UI.onboardingCanvasArea.style.minHeight = isChartTypeSection
-        ? (horiz ? WIDTH_2_UP : HEIGHT_2_UP) + "px"
-        : isSamplingSection
-        ? (horiz ? WIDTH_4_UP_TRAINING : HEIGHT_4_UP_TRAINING) + "px" : "";
+    const naturalCanvasH = isChartTypeSection ? (horiz ? WIDTH_2_UP : HEIGHT_2_UP)
+        : isSamplingSection ? (horiz ? WIDTH_4_UP_TRAINING : HEIGHT_4_UP_TRAINING) : 0;
+    UI.onboardingCanvasArea.style.minHeight = naturalCanvasH
+        ? Math.min(naturalCanvasH, onboardingCanvasMaxHeight()) + "px" : "";
     UI.onboardingCanvasArea.style.display        = step.type === "chartTypeIntro" ? "flex" : "";
     UI.onboardingCanvasArea.style.flexDirection  = step.type === "chartTypeIntro" ? "column" : "";
     UI.onboardingCanvasArea.style.justifyContent = step.type === "chartTypeIntro" ? "center" : "";
@@ -687,37 +677,11 @@ function renderOnboardingStep() {
     else if (step.type === "responseScale") {
         const total = session.design.conditions.length;
         UI.onboardingTitle.textContent = "Your Task";
-        UI.onboardingText.innerHTML =
-            `<p>For each of the <strong>${total} chart pairs</strong>, rate how much evidence
-            they provide that groups A and B come from <strong>genuinely different sources</strong>.</p>&nbsp;<p/>
-            <table class="ob-scale-table">
-                <thead><tr><th>Rating</th><th>Meaning</th></tr></thead>
-                <tbody>
-                    <tr><td><strong>No<br/>evidence</strong></td><td>The charts look like they could easily come from the same source. Any visible difference is well within what random sampling alone would produce.</td></tr>
-                    <tr><td><strong>Weak<br/>evidence</strong></td><td>There's a slight suggestion of a difference — maybe a small shift in center or spread — but it could plausibly be due to chance.</td></tr>
-                    <tr><td><strong>Moderate<br/>evidence</strong></td><td>The charts look noticeably different in some way (center, spread, or shape), but there's still meaningful uncertainty about whether it's real.</td></tr>
-                    <tr><td><strong>Strong<br/>evidence</strong></td><td>The charts look clearly different. It would be surprising if random sampling alone produced this much of a difference.</td></tr>
-                </tbody>
-            </table>
-            <p>There are no right or wrong answers. Go with your first impression.</p>`;
+        UI.onboardingText.innerHTML = yourTaskHTML(total);
     }
     else if (step.type === "background") {
         UI.onboardingTitle.textContent = "About You";
-        UI.onboardingText.innerHTML =
-            `<p>Before we start, a few quick questions about your prior knowledge.</p>` +
-            BG_SECTIONS.map(sec => `
-            <p class="ob-section-head">${sec.heading}</p>
-            <div class="bg-grid">
-                ${sec.questions.map(q => `
-                <div class="bg-row">
-                    <span class="bg-term">${q.label}</span>
-                    <div class="bg-options">
-                        ${sec.options.map(o =>
-                            `<button class="bg-btn" data-key="${q.key}" data-value="${o.value}">${o.label}</button>`
-                        ).join("")}
-                    </div>
-                </div>`).join("")}
-            </div>`).join("");
+        UI.onboardingText.innerHTML = backgroundHTML();
         // Restore any previously saved selections
         const bg = session.background ?? {};
         for (const [key, val] of Object.entries(bg)) {

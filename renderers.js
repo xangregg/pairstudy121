@@ -1,5 +1,5 @@
 // renderers.js
-// A small renderer collection for multi-group distributions.
+// A small renderer collection for multi-group univariate displays.
 
 import {mulberry32} from "./utils.js";
 

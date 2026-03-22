@@ -63,7 +63,7 @@
             font-size: 16px;
             user-select: none;
         }
-        button:hover:not(:disabled) { background: var(--surface-hover); }
+        @media (hover: hover) { button:hover:not(:disabled) { background: var(--surface-hover); } }
         button:disabled { opacity: 0.45; cursor: default; }
 
         /* ---- Intro page ---- */
@@ -79,7 +79,7 @@
         #onboardingThumbnails { display: flex; }
         .onboardingThumb { flex: 1; min-width: 0; display: block; width: 100%; height: auto; background: #ffffff; border-radius: 6px; }
         #introStartBtn { display: block; margin-left: auto; margin-top: 40px; font-size: 16px; padding: 12px 32px; background: var(--action-bg); color: var(--action-fg); border-color: var(--action-bg); border-radius: 10px; }
-        #introStartBtn:hover { background: var(--action-hover); border-color: var(--action-hover); }
+        @media (hover: hover) { #introStartBtn:hover { background: var(--action-hover); border-color: var(--action-hover); } }
 
         /* ---- Background questionnaire (used inside onboarding step) ---- */
         .bg-grid { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
@@ -93,8 +93,9 @@
             background: var(--surface); color: var(--text); cursor: pointer; white-space: nowrap;
             user-select: none;
         }
-        .bg-btn:hover { background: var(--surface-hover); }
+        @media (hover: hover) { .bg-btn:not(.selected):hover { background: var(--surface-hover); } }
         .bg-btn.selected { background: var(--action-bg); color: var(--action-fg); border-color: var(--action-bg); }
+        @media (hover: hover) { .bg-btn.selected:hover { background: var(--action-bg); border-color: var(--action-bg); } }
 
         /* ---- Onboarding page ---- */
         #onboardingPage { display: none; max-width: 620px; }
@@ -115,7 +116,7 @@
         #onboardingContinueBtn { font-size: 16px; padding: 12px 32px;
             background: var(--action-bg); color: var(--action-fg);
             border-color: var(--action-bg); border-radius: 10px; }
-        #onboardingContinueBtn:hover { background: var(--action-hover); border-color: var(--action-hover); }
+        @media (hover: hover) { #onboardingContinueBtn:hover { background: var(--action-hover); border-color: var(--action-hover); } }
         .ob-scale-table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 12px 0 18px; }
         .ob-scale-table td, .ob-scale-table th { font-size: 16px; border: 1px solid var(--border-light); padding: 14px 12px; text-align: left; }
         .ob-scale-table th { font-size: 16px; background: var(--surface-alt); font-weight: 600; }
@@ -160,8 +161,10 @@
             line-height: 1.3;
             text-align: center;
         }
-        body:not(.inhibit-hover) .ratingBtn:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--border); }
-        body.inhibit-hover .ratingBtn:hover { background: var(--surface); border-color: var(--border); }
+        @media (hover: hover) {
+            body:not(.inhibit-hover) .ratingBtn:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--border); }
+            body.inhibit-hover .ratingBtn:hover { background: var(--surface); border-color: var(--border); }
+        }
         .ratingBtn:disabled { opacity: 1; cursor: pointer; }
         .ratingBtn .num { font-size: 17px; font-weight: 700; color: var(--text-secondary); visibility: hidden; }
         .ratingBtn .label { color: var(--text-secondary); }
@@ -204,7 +207,7 @@
         <p>In this study you will be shown pairs of statistical charts and asked to judge
             whether the two charts appear to come from <strong>different underlying sources</strong> or not.</p>
         <p>There is a short training section before the main study.
-            The whole study takes around 10–15 minutes, and there are <strong>no right or wrong answers</strong>.</p>
+            The whole study takes around 10 minutes.</p>
     </div>
     <div id="introThumbnails">
         <canvas class="introThumb"></canvas>
@@ -254,22 +257,9 @@
         <canvas id="chart"></canvas>
     </div>
 
-    <div class="question">How much evidence do these charts provide that A and B are genuinely different?</div>
+    <div class="question" id="trialQuestion"></div>
 
-    <div class="rating-row">
-        <button class="ratingBtn" data-rating="1" disabled>
-            <span class="label">No<br/>evidence</span>
-        </button>
-        <button class="ratingBtn" data-rating="2" disabled>
-            <span class="label">Weak<br/>evidence</span>
-        </button>
-        <button class="ratingBtn" data-rating="3" disabled>
-            <span class="label">Moderate<br/>evidence</span>
-        </button>
-        <button class="ratingBtn" data-rating="4" disabled>
-            <span class="label">Strong<br/>evidence</span>
-        </button>
-    </div>
+    <div class="rating-row"></div>
 
     <div class="trial-footer" id="trialFooter">
         <button id="downloadBtn" disabled>Download results</button>
