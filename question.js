@@ -74,7 +74,7 @@ export function yourTaskHTML(total) {
     ).join("");
     return `<p>For each of the <strong>${total} chart pairs</strong>, rate how much evidence
         they provide that groups A and B come from <strong>genuinely different sources</strong>
-         with different underlying central locations, spreads, or shapes.</p>&nbsp;<p/>
+         with different underlying locations, spreads, or shapes.</p>&nbsp;<p/>
         <table class="ob-scale-table">
             <thead><tr><th>Rating</th><th>Meaning</th></tr></thead>
             <tbody>${rows}</tbody>

@@ -486,7 +486,7 @@ let _onboardingPanels = null;
 function getOnboardingPanels() {
     if (_onboardingPanels)
         return _onboardingPanels;
-    const rng = mulberry32(0x4F4E4241); // fixed seed chosen so the similar/different training are true
+    const rng = mulberry32(0x4F4E4243); // fixed seed chosen so the similar/different training are true
     const N_SRC = 500;
 
     // Page 2: one source, three 50-point samples from the same distribution
@@ -641,9 +641,9 @@ function renderOnboardingStep() {
         UI.onboardingTitle.textContent = "Different Sources, Different Samples";
         UI.onboardingText.innerHTML =
             `<p>Below are two different sources, each with one random sample.
-            Sources can differ in location or shape.
+            Sources can differ in location, spread, or shape.
             Source 2 has higher values and less spread.
-            Notice how samples A and B look different from each other.</p>`;
+            Notice how samples A and B also look different from each other.</p>`;
         const {panel3} = getOnboardingPanels();
         renderSamplingCanvas(panel3, ["Source 1", "A", "Source 2", "B"]);
 
@@ -655,7 +655,7 @@ function renderOnboardingStep() {
             `<p>Over the course of the study you'll see <strong>${n} chart ${n === 1 ? "type" : "types"}</strong>,
             briefly explained on the following pages.
             It's not important to remember every detail —
-            each question will include a short reminder.</p>
+            each page will include a short reminder above the chart.</p>
             <p>Your task is always the same: judge whether two charts appear to come from different sources.</p>`;
         UI.onboardingThumbnails.style.display = "flex";
         renderChartTypeThumbs(UI.onboardingThumbnails.querySelectorAll(".onboardingThumb"));
