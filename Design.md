@@ -11,7 +11,12 @@ This is an online graphical perception study examining how well different statis
 - How do different chart types compare in their ability to convey distributional differences between groups:
   - overall?
   - for each specific effect type?
-- For each chart type and effect type, how does the rating relate to the effect magnitude? Especially, it there a limit of perceptibility for each combination?
+- For each chart type and effect type, how does the rating relate to the effect magnitude? Especially, is there a limit of perceptibility for each combination?
+- Do overlaid dots help or hinder perception of differences?
+- Do box plots detect bimodality as well as violin plots?
+- Without any hinting about outliers, will participants ignore them?
+
+There are interesting questions for almost any combination of factors.
 
 ---
 
@@ -73,13 +78,13 @@ An *effect* is a modification applied to one of the two groups to create a poten
 
 **Normal distribution — 20 effect types:**
 
-| Effect type | Parameters |
-|---|---|
-| Null | — |
-| Location shift | Δ = 0.4, 0.6, 0.8, 1.0, 1.2, 1.4 SD units (6 levels) |
-| Scale change | Factor = 1.2×, 1.4×, 1.6× (3 levels) |
-| Skew | Skew-normal α = ±4, ±5 (4 levels) |
-| Bimodal | Separation = 2.0, 3.0, 4.0 SD units (3 levels) |
+| Effect type | Parameters                                                |
+|---|-----------------------------------------------------------|
+| Null | —                                                         |
+| Location shift | Δ = 0.4, 0.6, 0.8, 1.0, 1.2, 1.4 SD units (6 levels)      |
+| Scale change | Factor = 1.2×, 1.4×, 1.6× (3 levels)                      |
+| Skew | Skew-normal α = ±3, ±5 (4 levels); mean-centered (µ=0) but SD < 1 (σ≈0.77 for α=±3, σ≈0.62 for α=±5) |
+| Bimodal | Separation = 2.0, 3.0, 4.0 SD units (3 levels)            |
 | Outlier | 1–2 extreme values at 4.0 SD magnitude (3 configurations) |
 
 **Lognormal distribution — 10 effect types:**
@@ -151,10 +156,10 @@ Participants respond on a 4-point ordinal scale after each trial:
 
 | Score | Label | Operational meaning shown to participants |
 |-------|-------|------------------------------------------|
-| 1 | No evidence | Any difference is well within what random sampling alone would produce |
-| 2 | Weak evidence | Slight suggestion of a difference; could plausibly be due to chance |
-| 3 | Moderate evidence | Noticeably different in some way; meaningful uncertainty remains |
-| 4 | Strong evidence | Clearly different; surprising if random sampling alone produced this |
+| 1 | No evidence | The charts look like they could easily come from the same source. Any visible difference is well within what random sampling alone would produce. |
+| 2 | Weak evidence | The charts look similar, but there's a slight difference which might be real or random. |
+| 3 | Moderate evidence | The charts look noticeably different in some way, but there's still meaningful uncertainty about whether it's real. |
+| 4 | Strong evidence | The charts look clearly different. It would be surprising if random sampling alone produced this much of a difference. |
 
 Response buttons are suppressed for 500 ms after each trial begins to reduce accidental and impulsive responses. Additionally, the button's hover highlight is disabled until the mouse is moved to reduce anchoring bias.
 
@@ -225,7 +230,7 @@ Given the ordinal response and repeated-measures structure, a **cumulative link 
 
 ---
 
-## Design Limitations and Open Questions
+## Design Limitations
 
 1. **Effect type is not balanced within chart type.** The interaction of effect type × chart type cannot be cleanly estimated within a single participant. The random assignment means some participants will encounter a given chart type more often paired with easy effects and others with hard ones; this averages out across participants but limits within-participant analysis.
 
@@ -234,3 +239,11 @@ Given the ordinal response and repeated-measures structure, a **cumulative link 
 3. **Variant × chart type conflation.** Variants within a chart type category differ meaningfully in information content (e.g., box plot alone vs. box plot with individual data points overlaid). Analyses that collapse across variants within a category may mask substantial variant effects; analyses that treat variants as separate levels expand the factor considerably. 
 
 4. **effectGroup balance is global, not stratified.** Within any chart type or distribution subset, effectGroup assignment may deviate from 50/50, though large deviations are unlikely given 25 trials per chart type.
+
+---
+
+## Open Questions
+
+1. How to frame the main question and with what response scale? The survey aims to explore the basic question or Exploratory Data Analysis (EDA) question: "Is this anything?" However, it is not clear how to frame the question. **Status quo**: framed as evidence of difference.
+2. How many response scale items? The main feature of the question is that it's asymetric. In the spirit of the null hypothesis, there is only evidence for a difference, not evidence for similarity. **Status quo**: 4 levels: no/weak/moderate/strong.
+
