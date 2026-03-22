@@ -1,7 +1,7 @@
 // app.js
 
 import {renderChart, quantileSorted} from "./renderers.js";
-import {mulberry32, hashStringToUint32, randomNormal, shuffleInPlace} from "./utils.js";
+import {mulberry32, hashStringToUint32, randomNormal, shuffleInPlace, normalToSkewNormal} from "./utils.js";
 import {N_PER_GROUP, STORAGE_KEY, RATING_DELAY_MS, JITTER_CATALOG,
     DIST_REPS, DIST_REPS_TESTING, SEED_THRESHOLDS, MEAN_D_THRESHOLD} from "./config.js";
 import {buildCatalog} from "./catalog.js";
@@ -15,7 +15,8 @@ const TESTING = params.has("test")
     ? params.get("test") !== "false"
     : DEFAULT_TESTING;
 const SEEDREVIEW_DIST = params.get("seedreview"); // e.g. ?seedreview=lognormal
-const NOSUBMIT = params.has("nosubmit") || !!SEEDREVIEW_DIST;
+const SKEWPREVIEW = params.has("skewpreview");
+const NOSUBMIT = params.has("nosubmit") || !!SEEDREVIEW_DIST || SKEWPREVIEW;
 
 const N_CHART_TYPES = TESTING ? Infinity : 4;
 const N_VARIANT_TYPES = TESTING ? Infinity : 1;
@@ -239,21 +240,17 @@ function applyEffect(panel, dist, effect, rng, effectGroup = 1) {
     }
 
     if (effect.type === "skew") {
-        // Azzalini skew-normal (Azzalini 1985):
-        //   Y = δ|Z₁| + √(1−δ²)·Z₂,  δ = α/√(1+α²)
-        // Standardized to mean 0, variance 1 so scale matches the null group.
+        // Probability integral transform: map each existing z ~ N(0,1) to the same quantile
+        // in SN(alpha), then standardize to mean 0.
+        // This is a deterministic transform of the base data — no new RNG draws needed.
         const alpha = effect.alpha;
         const delta = alpha / Math.sqrt(1 + alpha * alpha);
-        const mu = delta * Math.sqrt(2 / Math.PI);
-        const sigma = Math.sqrt(1 - 2 * delta * delta / Math.PI);
+        const mu    = delta * Math.sqrt(2 / Math.PI);
+        // const sigma = Math.sqrt(1 - 2 * delta * delta / Math.PI);
         for (let i = 0; i < panel.y.length; i++) {
             if (panel.group[i] !== effectGroup) continue;
-            const z1 = Math.abs(randomNormal(rng));
-            const z2 = randomNormal(rng);
-            panel.y[i] = (delta * z1 + Math.sqrt(1 - delta * delta) * z2 - mu) / sigma;
+            panel.y[i] = (normalToSkewNormal(panel.y[i], alpha) - mu);
         }
-        // Note: median-centering to reduce location confound was tried but not adopted —
-        // the standardized parameterization already keeps the skew-normal at mean 0, variance 1.
         return panel;
     }
 
@@ -356,8 +353,8 @@ function makeDesign({rng}) {
             {type: "scale", scale_factor: 1.4},
             {type: "scale", scale_factor: 1.6},
             {type: "skew", alpha: 5},
-            {type: "skew", alpha: 4},
-            {type: "skew", alpha: -4},
+            {type: "skew", alpha: 3},
+            {type: "skew", alpha: -3},
             {type: "skew", alpha: -5},
             {type: "bimodal", separation: 4.0},
             {type: "bimodal", separation: 3.0},
@@ -1002,14 +999,93 @@ for (const b of UI.ratingBtns) {
 }
 
 // Hide diagnostic controls unless ?diagnostics=true or seed review mode
-if (params.get("diagnostics") !== "true" && !SEEDREVIEW_DIST) {
+if (params.get("diagnostics") !== "true" && !SEEDREVIEW_DIST && !SKEWPREVIEW) {
     for (const id of ["trialFooter", "debugDetails", "completionActions"]) {
         const el = document.getElementById(id);
         if (el) el.style.display = "none";
     }
 }
 
-if (SEEDREVIEW_DIST) {
+/** ---------- Skew preview mode (?skewpreview) ---------- **/
+
+function renderSkewPreview() {
+    // Replace the entire body with a self-contained preview grid.
+    // Shows null N(0,1) paired with normalized SN(alpha) for each alpha in the study.
+    const ALPHAS = [-5, -4, -2, 2, 4, 5];
+    const N = 500;
+    const CHART_TYPES = ["violin", "box"];
+    const rng = mulberry32(0xA1B2C3D4);
+
+    // Generate null group once; reused as group A in every pair.
+    const nullData = Array.from({length: N}, () => randomNormal(rng)).sort((a, b) => a - b);
+
+    document.body.innerHTML = "";
+    document.body.style.cssText = "margin:0; padding:16px; background:var(--bg); color:var(--text); font-family:system-ui,sans-serif;";
+
+    const title = document.createElement("h2");
+    title.textContent = "Skew preview — null N(0,1) vs normalized SN(α)";
+    title.style.cssText = "margin:0 0 16px; font-size:18px;";
+    document.body.appendChild(title);
+
+    for (const alpha of ALPHAS) {
+        const delta = alpha / Math.sqrt(1 + alpha * alpha);
+        const mu    = delta * Math.sqrt(2 / Math.PI);
+        const sigma = Math.sqrt(1 - 2 * delta * delta / Math.PI);
+
+        // Generate skewed group B, normalized to zero-mean unit-variance SN.
+        // Seed per alpha: spread them out so each alpha gets an independent sequence.
+        const skewSeed = (0xA1B2C3D4 + (alpha < 0 ? 0x10000 : 0) + Math.abs(alpha) * 0x1000) >>> 0;
+        const skewedRng = mulberry32(skewSeed);
+        const skewData = Array.from({length: N}, () => {
+            const z = randomNormal(skewedRng);
+            return (normalToSkewNormal(z, alpha) - mu);
+        }).sort((a, b) => a - b);
+
+        const panel = {groups: [nullData.slice(), skewData]};
+        const allY = [...panel.groups[0], ...panel.groups[1]];
+        const yMin = Math.min(...allY);
+        const yMax = Math.max(...allY);
+        const pad = (yMax - yMin) * 0.12;
+
+        const section = document.createElement("div");
+        section.style.cssText = "margin-bottom:24px;";
+
+        const heading = document.createElement("p");
+        heading.style.cssText = "margin:0 0 8px; font-size:16px; font-weight:600; color:var(--text);";
+        heading.textContent = `α = ${alpha}  (delta=${delta.toFixed(3)}, mu=${mu.toFixed(3)}, sigma=${sigma.toFixed(3)})`;
+        section.appendChild(heading);
+
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex; gap:12px; flex-wrap:wrap;";
+
+        for (const chartType of CHART_TYPES) {
+            const wrap = document.createElement("div");
+            wrap.style.cssText = "display:flex; flex-direction:column; align-items:center; gap:4px;";
+
+            const label = document.createElement("span");
+            label.style.cssText = "font-size:13px; color:var(--text-muted);";
+            label.textContent = chartType;
+            wrap.appendChild(label);
+
+            const c = document.createElement("canvas");
+            c.width = WIDTH_2_UP;
+            c.height = HEIGHT_2_UP;
+            c.style.cssText = "width:200px; height:auto; border:1px solid var(--border); border-radius:6px; background:#fff;";
+            renderChart(c.getContext("2d"), c, chartType, panel, yMin - pad, yMax + pad, {showDots:false, maxHalfW:500}, "vertical", "wilkinson");
+            wrap.appendChild(c);
+
+            row.appendChild(wrap);
+        }
+
+        section.appendChild(row);
+        document.body.appendChild(section);
+    }
+}
+
+if (SKEWPREVIEW) {
+    renderSkewPreview();
+}
+else if (SEEDREVIEW_DIST) {
     // Seed review mode: one trial per DATA_SEED in order, fixed distribution, null effect, dot plot
     localStorage.removeItem(STORAGE_KEY);
     const dotOptions = CHART_TYPE_CATALOG.find(e => e.type === "dot").variants[0];
