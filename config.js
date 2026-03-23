@@ -8,7 +8,9 @@ export const N_PER_GROUP = 50;
 export const STORAGE_KEY = "single_panel_study_v15";
 
 // Minimum delay (ms) before rating buttons activate, to discourage impulsive responses
-export const RATING_DELAY_MS = 1000;
+// Tempted to set it to 2+ seconds to allow reasonable consideration, but
+// if someone is trying to speedrun, the lower threshold will allow us to detect it.
+export const RATING_DELAY_MS = 500;
 
 // Available dot-jitter methods; one is randomly assigned per participant
 export const JITTER_CATALOG = ["random", "wilkinson", "beeswarm", "density random"];
