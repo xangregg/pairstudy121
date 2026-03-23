@@ -4,4 +4,4 @@ The app shows pairs of univariate charts and asks participants to assess whether
 
 Try it at [xangregg.github.io/pairstudy121](https://xangregg.github.io/pairstudy121/?group=gh1) 
 
-![thumbnails4up.png](images/thumbnails4up.png)
+![Four example chart pairs showing box, violin, dot, and band chart types](images/thumbnails4up.png)

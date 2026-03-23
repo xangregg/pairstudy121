@@ -4,6 +4,8 @@
 
 This is an online graphical perception study examining how well different statistical chart types allow observers to detect distributional differences between two groups. Each participant views a series of paired charts and rates the strength of evidence that the two groups come from different underlying sources.
 
+Author: Xan Gregg using Claude Code
+
 ---
 
 ## Research Questions
@@ -22,10 +24,10 @@ There are interesting questions for almost any combination of factors.
 
 ## Study Factors
 
-Each trial presents a single canvas containing two statistical charts of the same type side by side (labeled A and B). Each chart respresents 50 data values sampled from a specified distribution. In trials with a non-null effect, one group has an introduced difference in location, scale, or shape; in null trials both groups are drawn from the same base distribution.
+Each trial presents a single canvas containing two statistical charts of the same type side by side (labeled A and B). Each chart represents 50 data values sampled from a specified distribution. In trials with a non-null effect, one group has an introduced difference in location, scale, or shape; in null trials both groups are drawn from the same base distribution.
 
 <figure style="text-align: center">
-    <img src="images/trialbox.png" width="500">
+    <img src="images/trialbox.png" width="500" alt="Example trial showing a box plot pair">
     <figcaption>Example trial showing a box plot pair</figcaption>
 </figure>
 
@@ -143,7 +145,7 @@ All participants complete the same onboarding sequence before their first trial.
 4. **Response scale** — explains the 4-point rating scale and its intended meaning.
 
 <figure style="text-align: center">
-    <img src="images/sampling2.png" width="400">
+    <img src="images/sampling2.png" width="400" alt="Second sampling training page">
     <figcaption>Second sampling training page.</figcaption>                
 </figure>   
 The chart-type training pages are ordered to match the sequence in which each chart type first appears in that participant's randomized trial list. Additionally, each trial page shows a brief summary of the chart type details, such as specific cut-offs in use for band charts.
@@ -170,6 +172,7 @@ In addition to the response and design factors, key summary statistics for each 
 ## Design Structure
 
 ### Between-Subjects Factors
+Each participant is assigned a random combination of the following factors. The idea is to reduce training and ambiguity (some variants have similar appearances but different meanings).
 
 | Factor | Levels | Notes |
 |--------|--------|-------|
@@ -245,5 +248,5 @@ Given the ordinal response and repeated-measures structure, a **cumulative link 
 ## Open Questions
 
 1. How to frame the main question and with what response scale? The survey aims to explore the basic question or Exploratory Data Analysis (EDA) question: "Is this anything?" However, it is not clear how to frame the question. **Status quo**: framed as evidence of difference.
-2. How many response scale items? The main feature of the question is that it's asymetric. In the spirit of the null hypothesis, there is only evidence for a difference, not evidence for similarity. **Status quo**: 4 levels: no/weak/moderate/strong.
+2. How many response scale items? The main feature of the question is that it's asymmetric. In the spirit of the null hypothesis, there is only evidence for a difference, not evidence for similarity. **Status quo**: 4 levels: no/weak/moderate/strong.
 
