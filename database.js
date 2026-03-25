@@ -12,7 +12,8 @@ export function newParticipantId() {
 }
 
 export function loadOrCreateSession() {
-    const urlPid = new URLSearchParams(window.location.search).get("pid");
+    const p = new URLSearchParams(window.location.search);
+    const urlPid = p.get("pid") ?? p.get("PROLIFIC_PID") ?? p.get("prolific_pid");
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
         try {
@@ -82,6 +83,9 @@ export function postSession(session, group, noSubmit = false) {
         participant_id: session.participantId,
         started_at: session.startedAtISO,
         participant_group: group ?? null,
+        prolific_pid:        session.prolificPid        ?? null,
+        prolific_study_id:   session.prolificStudyId   ?? null,
+        prolific_session_id: session.prolificSessionId ?? null,
         // background questionnaire — frequency (1=Rarely, 2=Occasionally, 3=Regularly)
         bg_viz_frequency:   bg.vizFrequency   ?? null,
         bg_chart_frequency: bg.chartFrequency ?? null,

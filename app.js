@@ -18,6 +18,18 @@ const SEEDREVIEW_DIST = params.get("seedreview"); // e.g. ?seedreview=lognormal
 const SKEWPREVIEW = params.has("skewpreview");
 const NOSUBMIT = params.has("nosubmit") || !!SEEDREVIEW_DIST || SKEWPREVIEW;
 
+// Prolific appends these in uppercase; accept either case for local testing.
+const PROLIFIC_PID        = params.get("PROLIFIC_PID")  ?? params.get("prolific_pid");
+const PROLIFIC_STUDY_ID   = params.get("STUDY_ID")      ?? params.get("study_id");
+const PROLIFIC_SESSION_ID = params.get("SESSION_ID")    ?? params.get("session_id");
+// Completion code is base64-encoded in the survey URL (?cc=...) so it isn't immediately
+// readable to participants. Encode once with btoa("YOUR_CODE") when setting up the study URL.
+const COMPLETION_CODE = (() => {
+    const raw = params.get("pg");
+    if (!raw) return null;
+    try { return atob(raw); } catch { return raw; }
+})();
+
 const N_CHART_TYPES = TESTING ? Infinity : 4;
 const N_VARIANT_TYPES = TESTING ? Infinity : 1;
 const distReps = TESTING ? DIST_REPS_TESTING : DIST_REPS;
@@ -25,6 +37,14 @@ const distReps = TESTING ? DIST_REPS_TESTING : DIST_REPS;
 /** ---------- Session storage ---------- **/
 
 let session = loadOrCreateSession();
+
+// Persist Prolific PID on the session if present (survives page refresh).
+if (PROLIFIC_PID && !session.prolificPid) {
+    session.prolificPid = PROLIFIC_PID;
+    session.prolificStudyId = PROLIFIC_STUDY_ID;
+    session.prolificSessionId = PROLIFIC_SESSION_ID;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+}
 
 /** ---------- UI ---------- **/
 
@@ -817,7 +837,7 @@ function beginSession() {
 }
 
 function startStudy() {
-    postSession(session, params.get("group"), NOSUBMIT); // fires once; re-entries after onboarding resumption are silently rejected by the DB unique constraint on participant_id
+    postSession(session, params.get("group") ?? COMPLETION_CODE, NOSUBMIT); // fires once; re-entries after onboarding resumption are silently rejected by the DB unique constraint on participant_id
     UI.downloadBtn.disabled = UI.downloadDesignBtn.disabled = false;
     showTrial();
     nextTrial();
@@ -851,6 +871,11 @@ function finishStudy() {
     localStorage.removeItem(STORAGE_KEY);  // clear so next visitor starts fresh
     setRatingEnabled(false);
     showCompletion();
+    if (PROLIFIC_PID && COMPLETION_CODE) {
+        const btn = document.getElementById("prolificReturnBtn");
+        btn.href = `https://app.prolific.com/submissions/complete?cc=${encodeURIComponent(COMPLETION_CODE)}`;
+        btn.style.display = "inline-block";
+    }
 }
 
 

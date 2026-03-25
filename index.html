@@ -73,6 +73,7 @@
         .intro-tagline { font-size: 16px; font-style: italic; color: var(--text-muted); margin: 0 0 25px; }
         .intro-body { font-size: 16px; line-height: 1.65; color: var(--text); }
         .intro-body p { margin: 0 0 12px; }
+        .intro-data-notice { font-size: 13px; color: var(--text-faint); margin: 8px 0 0; }
         .intro-body strong { color: var(--text); }
         #introThumbnails { display: flex; gap: 10px; margin: 40px 0 4px; }
         .introThumb { flex: 1; min-width: 0; display: block; width: 100%; height: auto; background: #ffffff; border-radius: 6px; }
@@ -194,6 +195,14 @@
         #commentStatus { font-size: 16px; color: var(--text-muted); }
         .completion-actions { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
         .completion-actions button { font-size: 16px; padding: 6px 12px; color: var(--text-faint); }
+        #prolificReturnBtn {
+            display: none; margin-top: 28px;
+            padding: 12px 32px; font-size: 16px; font-family: inherit;
+            background: var(--action-bg); color: var(--action-fg);
+            border: 1px solid var(--action-bg); border-radius: 10px;
+            text-decoration: none; cursor: pointer;
+        }
+        @media (hover: hover) { #prolificReturnBtn:hover { background: var(--action-hover); border-color: var(--action-hover); } }
     </style>
 </head>
 <body>
@@ -209,6 +218,7 @@
         <p>There is a short training section before the main study.
             The whole study takes around 10 minutes.</p>
     </div>
+    <p class="intro-data-notice">This study records your responses, response times, and anonymous device information (browser, screen size, timezone). Data is used for research purposes only.</p>
     <div id="introThumbnails">
         <canvas class="introThumb"></canvas>
         <canvas class="introThumb"></canvas>
@@ -284,6 +294,7 @@
         <button id="submitCommentBtn">Submit comment</button>
         <span id="commentStatus"></span>
     </div>
+    <a id="prolificReturnBtn" href="#">Return to Prolific</a>
     <div class="completion-actions" id="completionActions">
         <button id="completionDownloadBtn">Download results</button>
         <button id="completionDownloadDesignBtn">Download design</button>
