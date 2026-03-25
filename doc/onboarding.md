@@ -1,5 +1,6 @@
 
 # Onboarding Outline
+*This document was provided to Claude Code for creating the training pages.*
 
 This graphical perception study shows participants a series of chart pairs and asks them to assess any difference between them.
 Some of the charts are less common statistical charts that need some explanation.
@@ -16,7 +17,7 @@ Participants likely have little or no technical background, so some upfront trai
    * brief explanation of the study topic
    * structure: some training, some background questions, and 100 chart pairs for assessment
    * reminder that the study is testing the charts not the participants -- no wrong answers
-1. Training about random sampli:ng (first page)
+1. Training about random sampling (first page)
    1. Page components: Text and a Continue button
    1. Text #1 (carries over to other random sampling pages): something like
       "The charts you'll be comparing are each made from 50 data values sampled from larger sources.
@@ -51,7 +52,7 @@ Participants likely have little or no technical background, so some upfront trai
    1. Pair of example charts using 50 values each sampled from a lognormal distribution.
 1. Training about response scale  
    Text: For each chart pair, you are to estimaste whether the two charts represent the same source or different sources
-   using the following response scale.
+   using the following response scale. (*now using four-value scale*)
 
 | Rating               | Meaning       |
 | -------------------- |:--------------|
@@ -64,7 +65,7 @@ Participants likely have little or no technical background, so some upfront trai
 * How many dots in the source charts? It should look crowded but not have enough points to badly distort the scale.
 * Should/can the sampling from the source chart to the sample chart be emphasized? Moved to Future Ideas.
   For instance, when each sample appears, the corresponds dots in the source chart are highlighted.
-* Should each page have a Back button? Moved to Future Ideas.
+* Should each page have a Back button? Moved to Future Ideas. (*now implemented*)
 
 ## Notes
 * The chart training shows the four chart type variants that will be used in the study.
@@ -72,6 +73,8 @@ Participants likely have little or no technical background, so some upfront trai
 * Every page as a Continue button.
 
 ## Clarifications
+*These are clarifications after Claude Code's questions and initial coding efforts.*
+
 1. Source chart rendering — the ~1000-dot source chart should use the existing density random jitter
    dot plot rendering just with a larger data set. Many overlapping dots are fine.
    It should give the impression of a virtually infinite data set.
@@ -83,7 +86,7 @@ Participants likely have little or no technical background, so some upfront trai
 4. Chart type training: which variant? — training must show the specific variant assigned to that participant (requires
    onboarding to run after design generation)
 5. Response scale page — I'm thinking the current structure completely replaces the existing intro page.
-6. Back button — moved to Future Ideas.
+6. Back button — moved to Future Ideas. (*now implemented*)
 7. Study structure claim — should be the actual dynamic count based on the design.
 1. Page 1 empty canvas — blank canvas removed -- I thought it might be useful to help the Continue button stay in the same place as the subsequent pages, but it may not matter.
 2. 4-panel layout — start with 1x4 (for vertical mode) and 4x1 (for horizontal mode). I want respondents to get used to seeing charts side by side.
@@ -91,10 +94,10 @@ Participants likely have little or no technical background, so some upfront trai
    share a common y-axis scale (derived from the union of both sources). The second source should be created with a smaller spread/scale effect, so it should cause minimal disruption to the shared scale
 4. Chart type example charts — yes, these are null-effect (same source, both samples) just to
    illustrate the chart type. I mentioned lognormal with hopes it would better illustrate some of the chart features with its asymetry.
-5. Background questionnaire placement — I'm thinking after onboarding.
+5. Background questionnaire placement — I'm thinking after onboarding. (*now a beginning of onboarding*)
 6. Source chart label — OK, let's label the source charts.
 
 ## Future ideas
 1. Animation for sampling descriptions: reveal each chart one by one
-2. Highlighting of the source dots in the source chart as the sample charts are revealed
-3. Back button
+2. Highlighting of the source dots in the source chart as the sample charts are revealed to reinforce the sampling mechanism.
+3. Back button (*now implemented*)
