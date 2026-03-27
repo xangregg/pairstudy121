@@ -872,6 +872,13 @@ function finishStudy() {
     setRatingEnabled(false);
     showCompletion();
     if (PROLIFIC_PID && COMPLETION_CODE) {
+        document.getElementById("completionCodeText").textContent = COMPLETION_CODE;
+        document.getElementById("prolificCompletionCode").style.display = "block";
+        document.getElementById("copyCodeBtn").addEventListener("click", () => {
+            navigator.clipboard.writeText(COMPLETION_CODE).then(() => {
+                document.getElementById("copyCodeBtn").textContent = "Copied!";
+            });
+        });
         const btn = document.getElementById("prolificReturnBtn");
         btn.href = `https://app.prolific.com/submissions/complete?cc=${encodeURIComponent(COMPLETION_CODE)}`;
         btn.style.display = "inline-block";
