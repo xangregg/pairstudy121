@@ -2,12 +2,6 @@
 // Background questionnaire structure
 // Trial question and response scale
 
-export const BG_FREQ_OPTIONS = [
-    { value: 1, label: "Rarely" },
-    { value: 2, label: "Occasionally" },
-    { value: 3, label: "Regularly" },
-];
-
 export const BG_FAM_OPTIONS = [
     { value: 1, label: "Unfamiliar" },
     { value: 2, label: "Somewhat" },
@@ -16,22 +10,15 @@ export const BG_FAM_OPTIONS = [
 
 export const BG_SECTIONS = [
     {
-        heading: "How often do you read...",
-        questions: [
-            { key: "vizFrequency",      label: "Bar charts / infographics" },
-            { key: "chartFrequency",    label: "Statistical charts" },
-        ],
-        options: BG_FREQ_OPTIONS,
-    },
-    {
         heading: "How familiar are you with...",
         questions: [
+            { key: "vizFrequency",     label: "Bar charts" },
+            { key: "chartFrequency",   label: "Scatter plots" },
+            { key: "boxPlot",          label: "Box plots" },
             { key: "mean",             label: "Mean" },
             { key: "sd",               label: "Standard deviation" },
             { key: "median",           label: "Median" },
             { key: "quartile",         label: "Quartile" },
-            { key: "boxPlot",          label: "Box plot" },
-            { key: "sampling",         label: "Population sampling" },
             { key: "linearRegression", label: "Linear regression" },
         ],
         options: BG_FAM_OPTIONS,

@@ -122,17 +122,14 @@ Effects are **not balanced within chart type**: a given effect may pair with one
 
 Before the main study begins, participants complete a brief self-report questionnaire collected as potential covariates for analysis.
 
-**Reading frequency** (Rarely / Occasionally / Regularly):
-- Bar charts and infographics
-- Statistical charts
-
 **Familiarity** (Unfamiliar / Somewhat / Very familiar):
+- Bar charts
+- Scatter plots
+- Box plots
 - Mean
 - Standard deviation
 - Median
 - Quartile
-- Box plot
-- Population sampling
 - Linear regression
 
 ### Training
