@@ -47,21 +47,21 @@ export const TRIAL_QUESTION = "How much evidence do these charts provide that A 
 // label: short display text; description: the full explanation shown to participants.
 export const RATING_SCALE = [
     {
-        label: "No evidence",
+        label: "No evidence", shortLabel: "None",
         description: "The charts look like they could easily come from the same source." +
             " Any visible difference is well within what random sampling alone would produce.",
     },
     {
-        label: "Weak evidence",
+        label: "Weak evidence", shortLabel: "Weak",
         description: "The charts look similar, but there’s a slight difference which might be real or random."
     },
     {
-        label: "Moderate evidence",
+        label: "Moderate evidence", shortLabel: "Moderate",
         description: "The charts look noticeably different in some way," +
             " but there’s still meaningful uncertainty about whether it’s real.",
     },
     {
-        label: "Strong evidence",
+        label: "Strong evidence", shortLabel: "Strong",
         description: "The charts look clearly different." +
             " It would be surprising if random sampling alone produced this much of a difference.",
     },

@@ -56,7 +56,7 @@ RATING_SCALE.forEach((r, i) => {
     btn.className = "ratingBtn";
     btn.dataset.rating = String(i + 1);
     btn.disabled = true;
-    btn.innerHTML = `<span class="label">${r.label.replace(" ", "<br/>")}</span>`;
+    btn.innerHTML = `<span class="label label-full">${r.label.replace(" ", "<br/>")}</span><span class="label label-short">${r.shortLabel}</span>`;
     ratingRow.appendChild(btn);
 });
 
@@ -571,7 +571,7 @@ function renderSamplingCanvas(panel, labels) {
     c.width = horiz ? HEIGHT_4_UP_TRAINING : WIDTH_4_UP_TRAINING;
     c.height = horiz ? WIDTH_4_UP_TRAINING : HEIGHT_4_UP_TRAINING;
     c.style.maxHeight = onboardingCanvasMaxHeight() + "px";
-    c.style.maxWidth = "";
+    c.style.maxWidth = "100%";
     c.style.width = "auto";
     c.style.display = "block";
     let mn = Infinity, mx = -Infinity;
@@ -592,7 +592,7 @@ function renderChartTypeCanvas(ct) {
     c.width = horiz ? HEIGHT_2_UP : WIDTH_2_UP;
     c.height = horiz ? WIDTH_2_UP : HEIGHT_2_UP;
     c.style.maxHeight = onboardingCanvasMaxHeight() + "px";
-    c.style.maxWidth = "";
+    c.style.maxWidth = "100%";
     c.style.width = "auto";
     c.style.display = "block";
     const panel = buildChartTypeExamplePanel(ct.type);
@@ -744,6 +744,7 @@ function advanceOnboarding() {
 
 /** ---------- Rendering ---------- **/
 function currentOrientation() {
+    if (window.innerWidth <= 480) return "vertical";
     const o = params.get("orientation");
     return (o === "horizontal" || o === "vertical") ? o : session.design.orientation;
 }
