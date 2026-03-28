@@ -889,27 +889,24 @@ function finishStudy() {
     setRatingEnabled(false);
     showCompletion();
     const statsEl = document.getElementById("ratingStats");
-    if (ratingStats.null.n > 0) {
-        const LEVELS = [
-            {key: "null",     label: "None"},
-            {key: "weak",     label: "Weak"},
-            {key: "moderate", label: "Moderate"},
-            {key: "strong",   label: "Strong"},
-        ];
-        const rows = LEVELS
-            .filter(({key}) => ratingStats[key].n > 0)
-            .map(({key, label}) => {
-                const s = ratingStats[key];
-                return `<tr><td>${label}</td><td>${s.mean.toFixed(1)}</td><td>${s.n}</td></tr>`;
-            }).join("");
-        statsEl.innerHTML =
-            `<p>The study aims to evaluate the charts, not the participants, but if you're curious, here are your average responses on a 1–4 scale.</p>` +
-            `<table class="rating-stats-table">` +
-            `<thead><tr><th>Expected Difference</th><th>Avg. response</th><th>Count</th></tr></thead>` +
-            `<tbody>${rows}</tbody>` +
-            `</table>`;
-        statsEl.style.display = "block";
-    }
+    const LEVELS = [
+        {key: "null",     label: "None"},
+        {key: "weak",     label: "Weak"},
+        {key: "moderate", label: "Moderate"},
+        {key: "strong",   label: "Strong"},
+    ];
+    const rows = LEVELS.map(({key, label}) => {
+        const s = ratingStats[key];
+        const avg = s.n > 0 ? s.mean.toFixed(1) : "--";
+        return `<tr><td>${label}</td><td>${avg}</td><td>${s.n}</td></tr>`;
+    }).join("");
+    statsEl.innerHTML =
+        `<p>The study aims to evaluate the charts, not the participants, but if you're curious, here are your average responses on a 1–4 scale.</p>` +
+        `<table class="rating-stats-table">` +
+        `<thead><tr><th>Expected Difference</th><th>Avg. response</th><th>Count</th></tr></thead>` +
+        `<tbody>${rows}</tbody>` +
+        `</table>`;
+    statsEl.style.display = "block";
     if (PROLIFIC_PID && COMPLETION_CODE) {
         document.getElementById("completionCodeText").textContent = COMPLETION_CODE;
         document.getElementById("prolificCompletionCode").style.display = "block";
