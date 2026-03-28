@@ -275,35 +275,39 @@ function applyEffect(panel, dist, effect, rng, effectGroup = 1) {
     }
 
     if (effect.type === "bimodal") {
-        // Compute min/max from reference (non-effect) group for re-standardization
-        let refMin = Infinity, refMax = -Infinity;
+        // Shift each point in the effect group to one of two modes at ±separation/2.
         for (let i = 0; i < panel.y.length; i++) {
-            if (panel.group[i] === effectGroup) continue;
-            if (panel.y[i] < refMin) refMin = panel.y[i];
-            if (panel.y[i] > refMax) refMax = panel.y[i];
+            if (panel.group[i] !== effectGroup) continue;
+            panel.y[i] = panel.y[i] + (rng() < 0.5 ? -0.5 : 0.5) * effect.separation;
+        }
+
+        // Cap range growth: if the effect group spans more than BIMODAL_MAX_SPAN_RATIO times
+        // the reference group's range, scale it down around its center. This limits how much
+        // participants can use the wider y-axis as a detection cue, while preserving the shape.
+        const BIMODAL_MAX_SPAN_RATIO = 1.2;
+        let refMin = Infinity, refMax = -Infinity, egMin = Infinity, egMax = -Infinity;
+        for (let i = 0; i < panel.y.length; i++) {
+            const y = panel.y[i];
+            if (panel.group[i] === effectGroup) {
+                if (y < egMin) egMin = y;
+                if (y > egMax) egMax = y;
+            }
+            else {
+                if (y < refMin) refMin = y;
+                if (y > refMax) refMax = y;
+            }
         }
         const refSpan = (refMax - refMin) || 1;
-
-        for (let i = 0; i < panel.y.length; i++) {
-            if (panel.group[i] !== effectGroup) continue;
-            const s = (rng() < 0.5 ? -0.5 : 0.5) * effect.separation;
-            panel.y[i] = panel.y[i] + s;
+        const egSpan  = (egMax  - egMin)  || 1;
+        const maxSpan = refSpan * BIMODAL_MAX_SPAN_RATIO;
+        if (egSpan > maxSpan) {
+            const scale = maxSpan / egSpan;
+            const egCenter = (egMin + egMax) / 2;
+            for (let i = 0; i < panel.y.length; i++) {
+                if (panel.group[i] !== effectGroup) continue;
+                panel.y[i] = egCenter + (panel.y[i] - egCenter) * scale;
+            }
         }
-
-        // Re-standardize the effect group to the reference group's range so that large
-        // separations don't push values far outside the shared y-axis scale.
-        let egMin = Infinity, egMax = -Infinity;
-        for (let i = 0; i < panel.y.length; i++) {
-            if (panel.group[i] !== effectGroup) continue;
-            if (panel.y[i] < egMin) egMin = panel.y[i];
-            if (panel.y[i] > egMax) egMax = panel.y[i];
-        }
-        const egSpan = (egMax - egMin) || 1;
-        for (let i = 0; i < panel.y.length; i++) {
-            if (panel.group[i] !== effectGroup) continue;
-            panel.y[i] = refMin + ((panel.y[i] - egMin) / egSpan) * refSpan;
-        }
-
         return panel;
     }
 
@@ -324,23 +328,23 @@ function applyEffect(panel, dist, effect, rng, effectGroup = 1) {
 
 /** ---------- Design ---------- **/
 
-// Build a balanced pool of nTrials effects drawn from the effects array.
-// Each effect appears floor(nTrials/effects.length) or ceil(...) times.
-// Each full or partial repetition is independently shuffled.
-function makeBalancedEffectPool(effects, nTrials, rng) {
+// Build a pool of nTrials effects drawn with probability proportional to weight.
+// Effects with weight=0 are excluded. Counts are assigned via the largest-remainder
+// method so they sum exactly to nTrials. The pool is then shuffled.
+function makeWeightedEffectPool(effects, nTrials, rng) {
+    const active = effects.filter(e => (e.weight ?? 10) > 0);
+    const totalWeight = active.reduce((s, e) => s + (e.weight ?? 10), 0);
+    const floats  = active.map(e => (e.weight ?? 10) / totalWeight * nTrials);
+    const counts  = floats.map(f => Math.floor(f));
+    let remaining = nTrials - counts.reduce((a, b) => a + b, 0);
+    const order   = floats.map((f, i) => i).sort((a, b) => (floats[b] - counts[b]) - (floats[a] - counts[a]));
+    for (let i = 0; i < remaining; i++)
+        counts[order[i]]++;
     const pool = [];
-    const nFull = Math.floor(nTrials / effects.length);
-    const nRemainder = nTrials % effects.length;
-    for (let i = 0; i < nFull; i++) {
-        const chunk = effects.slice();
-        shuffleInPlace(chunk, rng);
-        pool.push(...chunk);
-    }
-    if (nRemainder > 0) {
-        const chunk = effects.slice();
-        shuffleInPlace(chunk, rng);
-        pool.push(...chunk.slice(0, nRemainder));
-    }
+    for (let i = 0; i < active.length; i++)
+        for (let j = 0; j < counts[i]; j++)
+            pool.push(active[i]);
+    shuffleInPlace(pool, rng);
     return pool;
 }
 
@@ -362,45 +366,45 @@ function makeDesign({rng}) {
 
     const distEffects = {
         normal: [
-            {type: "null",    level: "null"},
-            {type: "location", delta_sd: 0.5, level: "weak"},
-            {type: "location", delta_sd: 0.8, level: "moderate"},
-            {type: "location", delta_sd: 1.1, level: "strong"},
-            {type: "location", delta_sd: 1.4, level: "strong"},
-            {type: "scale", scale_factor: 1.2, level: "weak"},
-            {type: "scale", scale_factor: 1.5, level: "moderate"},
-            {type: "scale", scale_factor: 1.8, level: "strong"},
-            {type: "skew", alpha:  7, level: "strong"},
-            {type: "skew", alpha:  5, level: "moderate"},
-            {type: "skew", alpha:  3, level: "weak"},
-            // {type: "skew", alpha: -3, level: "weak"},
-            // {type: "skew", alpha: -5, level: "moderate"},
-            // {type: "bimodal", separation: 5.0, level: "strong"},
-            {type: "bimodal", separation: 4.0, level: "strong"},
-            {type: "bimodal", separation: 3.0, level: "moderate"},
-            {type: "bimodal", separation: 2.0, level: "weak"},
-            // {type: "outlier", nHigh: 2, nLow: 0, magnitude: 4.0, level: "moderate"},
-            // {type: "outlier", nHigh: 1, nLow: 0, magnitude: 4.0, level: "weak"},
-            // {type: "outlier", nHigh: 0, nLow: 1, magnitude: 4.0, level: "weak"},
+            {type: "null",    level: "null",     weight: 20},
+            {type: "location", delta_sd: 0.5, level: "weak",     weight: 5},
+            {type: "location", delta_sd: 0.8, level: "moderate", weight: 10},
+            {type: "location", delta_sd: 1.1, level: "strong",   weight: 10},
+            {type: "location", delta_sd: 1.4, level: "strong",   weight: 5},
+            {type: "scale", scale_factor: 1.2, level: "weak",     weight: 5},
+            {type: "scale", scale_factor: 1.5, level: "moderate", weight: 10},
+            {type: "scale", scale_factor: 1.8, level: "strong",   weight: 10},
+            {type: "skew", alpha:  7, level: "strong",   weight: 5},
+            {type: "skew", alpha:  5, level: "moderate", weight: 0},
+            {type: "skew", alpha:  3, level: "weak",     weight: 0},
+            {type: "skew", alpha: -3, level: "weak",     weight: 0},
+            {type: "skew", alpha: -5, level: "moderate", weight: 0},
+            {type: "bimodal", separation: 5.0, level: "strong",   weight: 2},
+            {type: "bimodal", separation: 4.0, level: "strong",   weight: 8},
+            {type: "bimodal", separation: 3.0, level: "moderate", weight: 8},
+            {type: "bimodal", separation: 2.0, level: "weak",     weight: 8},
+            {type: "outlier", nHigh: 2, nLow: 0, magnitude: 4.0, level: "moderate", weight: 0},
+            {type: "outlier", nHigh: 1, nLow: 0, magnitude: 4.0, level: "weak",     weight: 5},
+            {type: "outlier", nHigh: 0, nLow: 1, magnitude: 4.0, level: "weak",     weight: 0},
         ],
         lognormal: [
-            {type: "null",    level: "null"},
-            {type: "location", ratio: 1.2, level: "weak"},
-            {type: "location", ratio: 1.3, level: "weak"},
-            {type: "location", ratio: 1.4, level: "moderate"},
-            {type: "location", ratio: 1.5, level: "moderate"},
-            {type: "location", ratio: 1.6, level: "strong"},
-            {type: "scale", scale_factor: 1.2, level: "weak"},
-            {type: "scale", scale_factor: 1.4, level: "moderate"},
-            {type: "scale", scale_factor: 1.6, level: "moderate"},
-            {type: "scale", scale_factor: 1.8, level: "strong"},
+            {type: "null",    level: "null",     weight: 10},
+            {type: "location", ratio: 1.2, level: "weak",     weight: 10},
+            {type: "location", ratio: 1.3, level: "weak",     weight: 10},
+            {type: "location", ratio: 1.4, level: "moderate", weight: 10},
+            {type: "location", ratio: 1.5, level: "moderate", weight: 10},
+            {type: "location", ratio: 1.6, level: "strong",   weight: 10},
+            {type: "scale", scale_factor: 1.2, level: "weak",     weight: 10},
+            {type: "scale", scale_factor: 1.4, level: "moderate", weight: 10},
+            {type: "scale", scale_factor: 1.6, level: "moderate", weight: 10},
+            {type: "scale", scale_factor: 1.8, level: "strong",   weight: 10},
         ],
         binomial: [
-            {type: "null",   level: "null"},
-            {type: "params", n: 10, p: 0.1, level: "moderate"},
-            {type: "params", n: 10, p: 0.3, level: "weak"},
-            {type: "params", n: 10, p: 0.4, level: "strong"},
-            {type: "params", n:  5, p: 0.2, level: "weak"},
+            {type: "null",   level: "null",     weight: 10},
+            {type: "params", n: 10, p: 0.1, level: "moderate", weight: 10},
+            {type: "params", n: 10, p: 0.3, level: "weak",     weight: 10},
+            {type: "params", n: 10, p: 0.4, level: "strong",   weight: 10},
+            {type: "params", n:  5, p: 0.2, level: "weak",     weight: 10},
         ],
     };
 
@@ -414,7 +418,7 @@ function makeDesign({rng}) {
         const seeds = Array.from({length: nPerDist}, (_, i) => DATA_SEEDS[i % DATA_SEEDS.length]);
         shuffleInPlace(seeds, rng);
         seedPools[dist] = seeds;
-        effectPools[dist] = makeBalancedEffectPool(distEffects[dist], nPerDist, rng);
+        effectPools[dist] = makeWeightedEffectPool(distEffects[dist], nPerDist, rng);
         poolIdxs[dist] = 0;
     }
 
