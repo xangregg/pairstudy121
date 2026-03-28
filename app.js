@@ -366,16 +366,16 @@ function makeDesign({rng}) {
 
     const distEffects = {
         normal: [
-            {type: "null",    level: "null",     weight: 20},
+            {type: "null",    level: "null",     weight: 12},
             {type: "location", delta_sd: 0.5, level: "weak",     weight: 5},
             {type: "location", delta_sd: 0.8, level: "moderate", weight: 10},
             {type: "location", delta_sd: 1.1, level: "strong",   weight: 10},
             {type: "location", delta_sd: 1.4, level: "strong",   weight: 5},
             {type: "scale", scale_factor: 1.2, level: "weak",     weight: 5},
             {type: "scale", scale_factor: 1.5, level: "moderate", weight: 10},
-            {type: "scale", scale_factor: 1.8, level: "strong",   weight: 10},
+            {type: "scale", scale_factor: 1.8, level: "strong",   weight: 5},
             {type: "skew", alpha:  7, level: "strong",   weight: 5},
-            {type: "skew", alpha:  5, level: "moderate", weight: 0},
+            {type: "skew", alpha:  5, level: "moderate", weight: 5},
             {type: "skew", alpha:  3, level: "weak",     weight: 0},
             {type: "skew", alpha: -3, level: "weak",     weight: 0},
             {type: "skew", alpha: -5, level: "moderate", weight: 0},
