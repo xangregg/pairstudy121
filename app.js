@@ -873,15 +873,25 @@ function nextTrial() {
 
 function computeRatingStats() {
     const buckets = {null: [], weak: [], moderate: [], strong: []};
+    const EXPECTED = {null: 1, weak: 2, moderate: 3, strong: 4};
+    const POINTS    = [1, 0.9, 0.2, 0]; // indexed by distance 0,1,2,3
+    let totalPoints = 0, totalTrials = 0;
+
     for (const r of session.results) {
         const level = r.condition.effect.level;
-        if (level in buckets)
+        if (level in buckets) {
             buckets[level].push(r.rating);
+            const dist = Math.abs(r.rating - EXPECTED[level]);
+            totalPoints += POINTS[Math.min(dist, 3)];
+            totalTrials++;
+        }
     }
     const avg = arr => arr.length === 0 ? null : arr.reduce((a, b) => a + b, 0) / arr.length;
-    return Object.fromEntries(
+    const byLevel = Object.fromEntries(
         Object.entries(buckets).map(([k, arr]) => [k, {mean: avg(arr), n: arr.length}])
     );
+    byLevel.alignmentScore = totalTrials > 0 ? totalPoints / totalTrials : null;
+    return byLevel;
 }
 
 function finishStudy() {
@@ -902,12 +912,16 @@ function finishStudy() {
         const avg = s.n > 0 ? s.mean.toFixed(1) : "--";
         return `<tr><td>${label}</td><td>${avg}</td><td>${s.n}</td></tr>`;
     }).join("");
+    const scorePct = ratingStats.alignmentScore !== null
+        ? Math.round(ratingStats.alignmentScore * 100) + "%"
+        : "--";
     statsEl.innerHTML =
         `<p>The study aims to evaluate the charts, not the participants, but if you're curious, here are your average responses on a 1–4 scale.</p>` +
         `<table class="rating-stats-table">` +
         `<thead><tr><th>Expected Difference</th><th>Avg. response</th><th>Count</th></tr></thead>` +
         `<tbody>${rows}</tbody>` +
-        `</table>`;
+        `</table>` +
+        `<p style="margin-top:12px;">Overall alignment score: <strong>${scorePct}</strong></p>`;
     statsEl.style.display = "block";
     if (PROLIFIC_PID && COMPLETION_CODE) {
         document.getElementById("completionCodeText").textContent = COMPLETION_CODE;
