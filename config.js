@@ -17,7 +17,7 @@ export const JITTER_CATALOG = ["random", "wilkinson", "beeswarm", "density rando
 
 // Number of repetitions (reps × chart types = trials) per distribution.
 // Set lognormal and binomial to 0 to exclude them from the current study.
-export const DIST_REPS          = {normal: 20, lognormal: 0, binomial: 0};
+export const DIST_REPS          = {normal: 25, lognormal: 0, binomial: 0};
 export const DIST_REPS_TESTING  = {normal:  3, lognormal: 0, binomial: 0};
 
 // Seed screening thresholds for the DATA_SEEDS pool.

@@ -363,46 +363,46 @@ function makeDesign({rng}) {
     const distEffects = {
         normal: [
             {type: "null",    level: "null"},
-            {type: "location", delta_sd: 0.4, level: "intermediate"},
-            {type: "location", delta_sd: 0.6, level: "intermediate"},
-            {type: "location", delta_sd: 0.8, level: "intermediate"},
-            {type: "location", delta_sd: 1.0, level: "intermediate"},
-            {type: "location", delta_sd: 1.2, level: "intermediate"},
-            {type: "location", delta_sd: 1.4, level: "maximal"},
-            {type: "scale", scale_factor: 1.2, level: "intermediate"},
-            {type: "scale", scale_factor: 1.4, level: "intermediate"},
-            {type: "scale", scale_factor: 1.6, level: "intermediate"},
-            {type: "scale", scale_factor: 1.8, level: "maximal"},
-            {type: "skew", alpha:  5, level: "maximal"},
-            {type: "skew", alpha:  3, level: "intermediate"},
-            {type: "skew", alpha: -3, level: "intermediate"},
-            {type: "skew", alpha: -5, level: "maximal"},
-            {type: "bimodal", separation: 5.0, level: "maximal"},
-            {type: "bimodal", separation: 4.0, level: "intermediate"},
-            {type: "bimodal", separation: 3.0, level: "intermediate"},
-            {type: "bimodal", separation: 2.0, level: "intermediate"},
-            // {type: "outlier", nHigh: 2, nLow: 0, magnitude: 4.0, level: "intermediate"},
-            // {type: "outlier", nHigh: 1, nLow: 0, magnitude: 4.0, level: "intermediate"},
-            // {type: "outlier", nHigh: 0, nLow: 1, magnitude: 4.0, level: "intermediate"},
+            {type: "location", delta_sd: 0.4, level: "weak"},
+            {type: "location", delta_sd: 0.6, level: "weak"},
+            {type: "location", delta_sd: 0.8, level: "moderate"},
+            {type: "location", delta_sd: 1.0, level: "moderate"},
+            {type: "location", delta_sd: 1.2, level: "strong"},
+            {type: "location", delta_sd: 1.4, level: "strong"},
+            {type: "scale", scale_factor: 1.2, level: "weak"},
+            {type: "scale", scale_factor: 1.4, level: "moderate"},
+            {type: "scale", scale_factor: 1.6, level: "moderate"},
+            {type: "scale", scale_factor: 1.8, level: "strong"},
+            {type: "skew", alpha:  5, level: "moderate"},
+            {type: "skew", alpha:  3, level: "weak"},
+            {type: "skew", alpha: -3, level: "weak"},
+            {type: "skew", alpha: -5, level: "moderate"},
+            {type: "bimodal", separation: 5.0, level: "strong"},
+            {type: "bimodal", separation: 4.0, level: "strong"},
+            {type: "bimodal", separation: 3.0, level: "moderate"},
+            {type: "bimodal", separation: 2.0, level: "weak"},
+            // {type: "outlier", nHigh: 2, nLow: 0, magnitude: 4.0, level: "moderate"},
+            // {type: "outlier", nHigh: 1, nLow: 0, magnitude: 4.0, level: "weak"},
+            // {type: "outlier", nHigh: 0, nLow: 1, magnitude: 4.0, level: "weak"},
         ],
         lognormal: [
             {type: "null",    level: "null"},
-            {type: "location", ratio: 1.2, level: "intermediate"},
-            {type: "location", ratio: 1.3, level: "intermediate"},
-            {type: "location", ratio: 1.4, level: "intermediate"},
-            {type: "location", ratio: 1.5, level: "intermediate"},
-            {type: "location", ratio: 1.6, level: "maximal"},
-            {type: "scale", scale_factor: 1.2, level: "intermediate"},
-            {type: "scale", scale_factor: 1.4, level: "intermediate"},
-            {type: "scale", scale_factor: 1.6, level: "intermediate"},
-            {type: "scale", scale_factor: 1.8, level: "maximal"},
+            {type: "location", ratio: 1.2, level: "weak"},
+            {type: "location", ratio: 1.3, level: "weak"},
+            {type: "location", ratio: 1.4, level: "moderate"},
+            {type: "location", ratio: 1.5, level: "moderate"},
+            {type: "location", ratio: 1.6, level: "strong"},
+            {type: "scale", scale_factor: 1.2, level: "weak"},
+            {type: "scale", scale_factor: 1.4, level: "moderate"},
+            {type: "scale", scale_factor: 1.6, level: "moderate"},
+            {type: "scale", scale_factor: 1.8, level: "strong"},
         ],
         binomial: [
             {type: "null",   level: "null"},
-            {type: "params", n: 10, p: 0.1, level: "maximal"},
-            {type: "params", n: 10, p: 0.3, level: "intermediate"},
-            {type: "params", n: 10, p: 0.4, level: "maximal"},
-            {type: "params", n:  5, p: 0.2, level: "intermediate"},
+            {type: "params", n: 10, p: 0.1, level: "moderate"},
+            {type: "params", n: 10, p: 0.3, level: "weak"},
+            {type: "params", n: 10, p: 0.4, level: "strong"},
+            {type: "params", n:  5, p: 0.2, level: "weak"},
         ],
     };
 
@@ -870,17 +870,16 @@ function nextTrial() {
 }
 
 function computeRatingStats() {
-    const buckets = {null: [], maximal: []};
+    const buckets = {null: [], weak: [], moderate: [], strong: []};
     for (const r of session.results) {
         const level = r.condition.effect.level;
-        if (level === "null" || level === "maximal")
+        if (level in buckets)
             buckets[level].push(r.rating);
     }
     const avg = arr => arr.length === 0 ? null : arr.reduce((a, b) => a + b, 0) / arr.length;
-    return {
-        null:    {mean: avg(buckets.null),    n: buckets.null.length},
-        maximal: {mean: avg(buckets.maximal), n: buckets.maximal.length},
-    };
+    return Object.fromEntries(
+        Object.entries(buckets).map(([k, arr]) => [k, {mean: avg(arr), n: arr.length}])
+    );
 }
 
 function finishStudy() {
@@ -890,11 +889,25 @@ function finishStudy() {
     setRatingEnabled(false);
     showCompletion();
     const statsEl = document.getElementById("ratingStats");
-    if (ratingStats.null.n > 0 && ratingStats.maximal.n > 0) {
+    if (ratingStats.null.n > 0) {
+        const LEVELS = [
+            {key: "null",     label: "None"},
+            {key: "weak",     label: "Weak"},
+            {key: "moderate", label: "Moderate"},
+            {key: "strong",   label: "Strong"},
+        ];
+        const rows = LEVELS
+            .filter(({key}) => ratingStats[key].n > 0)
+            .map(({key, label}) => {
+                const s = ratingStats[key];
+                return `<tr><td>${label}</td><td>${s.mean.toFixed(1)}</td><td>${s.n}</td></tr>`;
+            }).join("");
         statsEl.innerHTML =
-            `<p>The study aims to evaluate the charts, not the participants, but if you're curious (ratings were 1–4):</p>` +
-            `<p>On pairs with no real difference, your average response was <strong>${ratingStats.null.mean.toFixed(1)}</strong> (${ratingStats.null.n} pairs).</p>` +
-            `<p>On pairs with greatest difference, your average response was <strong>${ratingStats.maximal.mean.toFixed(1)}</strong> (${ratingStats.maximal.n} pairs).</p>`;
+            `<p>The study aims to evaluate the charts, not the participants, but if you're curious, here are your average responses on a 1–4 scale.</p>` +
+            `<table class="rating-stats-table">` +
+            `<thead><tr><th>Expected Difference</th><th>Avg. response</th><th>Count</th></tr></thead>` +
+            `<tbody>${rows}</tbody>` +
+            `</table>`;
         statsEl.style.display = "block";
     }
     if (PROLIFIC_PID && COMPLETION_CODE) {
