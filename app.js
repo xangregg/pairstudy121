@@ -56,7 +56,11 @@ RATING_SCALE.forEach((r, i) => {
     btn.className = "ratingBtn";
     btn.dataset.rating = String(i + 1);
     btn.disabled = true;
-    btn.innerHTML = `<span class="label label-full">${r.label.replace(" ", "<br/>")}</span><span class="label label-short">${r.shortLabel}</span>`;
+    const [word1, ...rest] = r.label.split(" ");
+    const fullLabel = rest.length
+        ? `${word1}<br/><span class="label-dim">${rest.join(" ")}</span>`
+        : word1;
+    btn.innerHTML = `<span class="label label-full">${fullLabel}</span><span class="label label-short">${r.shortLabel}</span>`;
     ratingRow.appendChild(btn);
 });
 
@@ -901,11 +905,12 @@ function finishStudy() {
     setRatingEnabled(false);
     showCompletion();
     const statsEl = document.getElementById("ratingStats");
+    const [s1, s2, s3, s4] = RATING_SCALE;
     const LEVELS = [
-        {key: "null",     label: "None"},
-        {key: "weak",     label: "Weak"},
-        {key: "moderate", label: "Moderate"},
-        {key: "strong",   label: "Strong"},
+        {key: "null",     label: s1.shortLabel},
+        {key: "weak",     label: s2.shortLabel},
+        {key: "moderate", label: s3.shortLabel},
+        {key: "strong",   label: s4.shortLabel},
     ];
     const rows = LEVELS.map(({key, label}) => {
         const s = ratingStats[key];
@@ -918,7 +923,7 @@ function finishStudy() {
     statsEl.innerHTML =
         `<p>The study aims to evaluate the charts, not the participants, but if you're curious, here are your average responses on a 1–4 scale.</p>` +
         `<table class="rating-stats-table">` +
-        `<thead><tr><th>Expected Difference</th><th>Avg. response</th><th>Count</th></tr></thead>` +
+        `<thead><tr><th>Expected Surprise</th><th>Avg. response</th><th>Count</th></tr></thead>` +
         `<tbody>${rows}</tbody>` +
         `</table>` +
         `<p style="margin-top:12px;">Overall alignment score: <strong>${scorePct}</strong></p>`;

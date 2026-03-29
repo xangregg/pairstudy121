@@ -27,41 +27,76 @@ export const BG_SECTIONS = [
 
 export const BG_QUESTIONS = BG_SECTIONS.flatMap(s => s.questions);
 
-// The question shown above the rating buttons on every trial.
-export const TRIAL_QUESTION = "How much evidence do these charts provide that A and B are genuinely different?";
+// Switch between question framings here.
+// "evidence" — "How much evidence do these charts provide that A and B are genuinely different?"
+// "surprise" — "If A and B are random samples from the same source, how surprising is this difference?"
+const QUESTION_FRAMING = "surprise";
+
+export const TRIAL_QUESTION = QUESTION_FRAMING === "surprise"
+    ? "How surprising would it be if samples A and B were from the same source?"
+    : "How much evidence do these charts provide that A and B are genuinely different?";
 
 // The four rating levels shown in training and used during trials.
 // label: short display text; description: the full explanation shown to participants.
-export const RATING_SCALE = [
-    {
-        label: "No evidence", shortLabel: "None",
-        description: "The charts look like they could easily come from the same source." +
-            " Any visible difference is well within what random sampling alone would produce.",
-    },
-    {
-        label: "Weak evidence", shortLabel: "Weak",
-        description: "The charts look similar, but there’s a slight difference which might be real or random."
-    },
-    {
-        label: "Moderate evidence", shortLabel: "Moderate",
-        description: "The charts look noticeably different in some way," +
-            " but there’s still meaningful uncertainty about whether it’s real.",
-    },
-    {
-        label: "Strong evidence", shortLabel: "Strong",
-        description: "The charts look clearly different." +
-            " It would be surprising if random sampling alone produced this much of a difference.",
-    },
-];
+export const RATING_SCALE = QUESTION_FRAMING === "surprise"
+    ? [
+        {
+            label: "Not surprising", shortLabel: "Not",
+            description: "The difference looks like normal sampling variation — " +
+                "what you’d expect even if A and B come from the same source.",
+        },
+        {
+            label: "Slightly surprising", shortLabel: "Slight",
+            description: "The difference is a little more than typical, but could still easily be due to random sampling.",
+        },
+        {
+            label: "Quite surprising", shortLabel: "Quite",
+            description: "The difference seems more than you’d usually expect from random sampling alone.",
+        },
+        {
+            label: "Very surprising", shortLabel: "Very",
+            description: "The difference would be very unusual if A and B were random samples from the same source.",
+        },
+    ]
+    : [
+        {
+            label: "No evidence", shortLabel: "None",
+            description: "The charts look like they could easily come from the same source." +
+                " Any visible difference is well within what random sampling alone would produce.",
+        },
+        {
+            label: "Weak evidence", shortLabel: "Weak",
+            description: "The charts look similar, but there’s a slight difference which might be real or random.",
+        },
+        {
+            label: "Moderate evidence", shortLabel: "Moderate",
+            description: "The charts look noticeably different in some way," +
+                " but there’s still meaningful uncertainty about whether it’s real.",
+        },
+        {
+            label: "Strong evidence", shortLabel: "Strong",
+            description: "The charts look clearly different." +
+                " It would be surprising if random sampling alone produced this much of a difference.",
+        },
+    ];
 
 // HTML for the "Your Task" onboarding step.
 export function yourTaskHTML(total) {
-    const rows = RATING_SCALE.map(r =>
-        `<tr><td><strong>${r.label.replace(" ", "<br/>")}</strong></td><td>${r.description}</td></tr>`
-    ).join("");
-    return `<p>For each of the <strong>${total} chart pairs</strong>, rate how much evidence
-        they provide that groups A and B come from <strong>genuinely different sources</strong>
-         with different underlying locations, spreads, or shapes.</p>&nbsp;<p/>
+    const rows = RATING_SCALE.map(r => {
+        const [word1, ...rest] = r.label.split(" ");
+        const cellLabel = rest.length
+            ? `${word1}<br/><span class="label-dim">${rest.join(" ")}</span>`
+            : word1;
+        return `<tr><td><strong>${cellLabel}</strong></td><td>${r.description}</td></tr>`;
+    }).join("");
+    const intro = QUESTION_FRAMING === "surprise"
+        ? `<p>You will see <strong>${total} pairs</strong> of charts. Recall that each chart
+            represents 50 values sampled from some source. For each pair, rate how surprising
+            it would be if both samples were from the same source.</p>`
+        :`<p>You will see <strong>${total} pairs</strong> of charts. Recall that each chart
+            represents 50 values sampled from some source. For each pair, rate how much evidence
+            they provide that the two samples come from <strong>genuinely different sources</strong>.</p>`;
+    return `${intro}&nbsp;<p/>
         <table class="ob-scale-table">
             <thead><tr><th>Rating</th><th>Meaning</th></tr></thead>
             <tbody>${rows}</tbody>
