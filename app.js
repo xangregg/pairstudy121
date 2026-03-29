@@ -481,7 +481,10 @@ function buildTrial(trialIdx, cond) {
 const PAGES = () => [UI.introPage, UI.onboardingPage, UI.trialPage, UI.completionPage];
 function showPage(page) { for (const p of PAGES()) p.style.display = p === page ? "block" : "none"; }
 
-function showIntro()      { showPage(UI.introPage); }
+function showIntro() {
+    showPage(UI.introPage);
+    document.getElementById("introTrialCount").textContent = session.design.conditions.length;
+}
 function showOnboarding() { showPage(UI.onboardingPage); renderOnboardingStep(); }
 function showTrial()      { showPage(UI.trialPage); }
 function showCompletion() { showPage(UI.completionPage); }
