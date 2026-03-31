@@ -926,7 +926,7 @@ function finishStudy() {
     statsEl.innerHTML =
         `<p>The study aims to evaluate the charts, not the participants, but if you're curious, here are your average responses on a 1–4 scale.</p>` +
         `<table class="rating-stats-table">` +
-        `<thead><tr><th>Expected Surprise</th><th>Avg. response</th><th>Count</th></tr></thead>` +
+        `<thead><tr><th>Expected Surprise</th><th>Your surprise</th><th>Count</th></tr></thead>` +
         `<tbody>${rows}</tbody>` +
         `</table>` +
         `<p style="margin-top:12px;">Overall alignment score: <strong>${scorePct}</strong></p>`;
