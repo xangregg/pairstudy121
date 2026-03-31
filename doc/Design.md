@@ -1,8 +1,8 @@
-# Study Design: Paired Differences Perception Study
+# Study Design: Paired Distributions Perception Study
 
 ## Overview
 
-This is an online graphical perception study examining how well different statistical chart types allow observers to detect distributional differences between two groups. Each participant views a series of paired charts and rates the strength of evidence that the two groups come from different underlying sources.
+This is an online graphical perception study examining how well different statistical chart types allow observers to detect distributional differences between two groups. Each participant views a series of paired charts and rates how surprising it would be if both samples came from the same source.
 
 Author: Xan Gregg using Claude Code
 
@@ -76,18 +76,29 @@ The survey app supports up to three base distributions to generate the raw data 
 
 ### Effects
 
-An *effect* is a modification applied to one of the two groups to create a potentially detectable difference. Each trial draws one effect uniformly at random from the applicable distribution's effect pool. The null effect (no modification) is included in each pool.
+An *effect* is a modification applied to one of the two groups to create a potentially detectable difference. Each trial draws one effect from the applicable distribution's effect pool using weighted random sampling. The null effect (no modification) is included in each pool. Effects with weight 0 are defined but excluded from sampling.
 
-**Normal distribution — 20 effect types:**
+Each effect has a *level* (null / weak / moderate / strong) used for alignment scoring on the completion page.
 
-| Effect type | Parameters                                                |
-|---|-----------------------------------------------------------|
-| Null | —                                                         |
-| Location shift | Δ = 0.4, 0.6, 0.8, 1.0, 1.2, 1.4 SD units (6 levels)      |
-| Scale change | Factor = 1.2×, 1.4×, 1.6× (3 levels)                      |
-| Skew | Skew-normal α = ±3, ±5 (4 levels); mean-centered (µ=0) but SD < 1 (σ≈0.77 for α=±3, σ≈0.62 for α=±5) |
-| Bimodal | Separation = 2.0, 3.0, 4.0 SD units (3 levels)            |
-| Outlier | 1–2 extreme values at 4.0 SD magnitude (3 configurations) |
+**Normal distribution — 15 active effect types (weight > 0):**
+
+| Effect type | Parameters | Level | Weight |
+|---|---|---|---|
+| Null | — | null | 12 |
+| Location shift | Δ = 0.5 SD | weak | 5 |
+| Location shift | Δ = 0.8 SD | moderate | 10 |
+| Location shift | Δ = 1.1 SD | strong | 10 |
+| Location shift | Δ = 1.4 SD | strong | 5 |
+| Scale change | Factor = 1.2× | weak | 5 |
+| Scale change | Factor = 1.5× | moderate | 10 |
+| Scale change | Factor = 1.8× | strong | 5 |
+| Skew | Skew-normal α = 5; mean-centered (µ=0), SD ≈ 0.62 | moderate | 5 |
+| Skew | Skew-normal α = 7; mean-centered (µ=0), SD ≈ 0.51 | strong | 5 |
+| Bimodal | Separation = 2.0 SD | weak | 8 |
+| Bimodal | Separation = 3.0 SD | moderate | 8 |
+| Bimodal | Separation = 4.0 SD | strong | 8 |
+| Bimodal | Separation = 5.0 SD | strong | 2 |
+| Outlier | 1 high value at 4.0 SD magnitude | weak | 5 |
 
 **Lognormal distribution — 10 effect types:**
 
@@ -106,11 +117,16 @@ An *effect* is a modification applied to one of the two groups to create a poten
 
 ### Effect Assignment
 
-Effects are assigned from a balanced pool. For each distribution, the effect list is replicated ⌊nTrials / nEffects⌋ times and a partial replicate of size (nTrials mod nEffects) is appended; each replicate is independently shuffled. This guarantees each effect type appears either ⌊nTrials / nEffects⌋ or ⌈nTrials / nEffects⌉ times — exact counts per participant:
+Effects are assigned using weighted random sampling. A pool of exactly 100 effect instances is constructed via the largest-remainder method applied to each effect's weight, then shuffled. This guarantees the total count per effect type is proportional to its weight, with each effect appearing either ⌊100 × w/W⌋ or ⌈100 × w/W⌉ times (where W = sum of all active weights = 103 for normal). Approximate expected counts for the normal distribution:
 
-- Normal: exactly 5 (100 trials ÷ 20 effects, perfectly balanced)
-- Lognormal: 0 (unused)
-- Binomial: 0 (unused)
+| Effect type | Expected trials |
+|---|---|
+| Null | ~12 |
+| Location (all levels) | ~29 |
+| Scale (all levels) | ~19 |
+| Skew (all levels) | ~10 |
+| Bimodal (all levels) | ~25 |
+| Outlier | ~5 |
 
 Effects are **not balanced within chart type**: a given effect may pair with one chart type more than another within a session, though this averages out across participants.
 
@@ -151,14 +167,16 @@ The chart-type training pages are ordered to match the sequence in which each ch
 
 ## Response Variable
 
-Participants respond on a 4-point ordinal scale after each trial:
+The trial question is: *"How surprising would it be if samples A and B were from the same source?"*
+
+Participants respond on a 4-point ordinal scale:
 
 | Score | Label | Operational meaning shown to participants |
 |-------|-------|------------------------------------------|
-| 1 | No evidence | The charts look like they could easily come from the same source. Any visible difference is well within what random sampling alone would produce. |
-| 2 | Weak evidence | The charts look similar, but there's a slight difference which might be real or random. |
-| 3 | Moderate evidence | The charts look noticeably different in some way, but there's still meaningful uncertainty about whether it's real. |
-| 4 | Strong evidence | The charts look clearly different. It would be surprising if random sampling alone produced this much of a difference. |
+| 1 | Not surprising | The difference looks like normal sampling variation — what you'd expect even if A and B come from the same source. |
+| 2 | Slightly surprising | The difference is a little more than typical, but could still easily be due to random sampling. |
+| 3 | Quite surprising | The difference seems more than you'd usually expect from random sampling alone. |
+| 4 | Very surprising | The difference would be very unusual if A and B were random samples from the same source. |
 
 Response buttons are suppressed for 500 ms after each trial begins to reduce accidental and impulsive responses. Additionally, the button's hover highlight is disabled until the mouse is moved to reduce anchoring bias.
 
@@ -244,6 +262,6 @@ Given the ordinal response and repeated-measures structure, a **cumulative link 
 
 ## Open Questions
 
-1. How to frame the main question and with what response scale? The survey aims to explore the basic question or Exploratory Data Analysis (EDA) question: "Is this anything?" However, it is not clear how to frame the question. **Status quo**: framed as evidence of difference.
-2. How many response scale items? The main feature of the question is that it's asymmetric. In the spirit of the null hypothesis, there is only evidence for a difference, not evidence for similarity. **Status quo**: 4 levels: no/weak/moderate/strong.
+1. How to frame the main question and with what response scale? The survey aims to explore the basic EDA question: "Is this anything?" The framing can be switched via the `QUESTION_FRAMING` constant in `question.js` between `"surprise"` (current) and `"evidence"`. **Status quo**: framed as how surprising it would be if both samples came from the same source.
+2. How many response scale items? The main feature of the question is that it's asymmetric. In the spirit of the null hypothesis, there is only evidence for a difference, not evidence for similarity. **Status quo**: 4 levels: not/slightly/quite/very surprising.
 
