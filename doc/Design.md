@@ -27,7 +27,7 @@ There are interesting questions for almost any combination of factors.
 Each trial presents a single canvas containing two statistical charts of the same type side by side (labeled A and B). Each chart represents 50 data values sampled from a specified distribution. In trials with a non-null effect, one group has an introduced difference in location, scale, or shape; in null trials both groups are drawn from the same base distribution.
 
 <figure style="text-align: center">
-    <img src="images/trialbox.png" width="500" alt="Example trial showing a box plot pair">
+    <img src="../images/trialbox.png" width="500" alt="Example trial showing a box plot pair">
     <figcaption>Example trial showing a box plot pair</figcaption>
 </figure>
 
@@ -154,11 +154,11 @@ All participants complete the same onboarding sequence before their first trial.
 
 1. **Background questionnaire** — the familiarity and frequency questions above. The Continue button is disabled until all questions are answered.
 2. **Understanding Sampling (3 pages)** — introduces the concept that each chart shows a random sample from a larger source. Page 1 shows one source and one sample; page 2 shows one source and three samples to illustrate within-source variation; page 3 shows two sources with one sample each to illustrate between-source differences.
-3. **Chart Types** — an overview page showing thumbnail examples of all four assigned chart types, followed by one dedicated page per chart type explaining how to read it, with an example pair drawn from the same source. The training is only for the variants of the chart tye that the participant will see in the study.
+3. **Chart Types** — an overview page showing thumbnail examples of all four assigned chart types, followed by one dedicated page per chart type explaining how to read it, with an example pair drawn from the same source. The training is only for the variants of the chart type that the participant will see in the study.
 4. **Response scale** — explains the 4-point rating scale and its intended meaning.
 
 <figure style="text-align: center">
-    <img src="images/sampling2.png" width="400" alt="Second sampling training page">
+    <img src="../images/sampling2.png" width="400" alt="Second sampling training page">
     <figcaption>Second sampling training page.</figcaption>                
 </figure>   
 The chart-type training pages are ordered to match the sequence in which each chart type first appears in that participant's randomized trial list. Additionally, each trial page shows a brief summary of the chart type details, such as specific cut-offs in use for band charts.
@@ -203,7 +203,7 @@ Each participant completes 100 trials presented in randomized order.
 |--------|--------|---------------------------|
 | Chart type | 4 | 25 each                   |
 | Distribution | Normal, Lognormal, Binomial | 100, 0, 0                 |
-| Effect type | 20 | Random assignment per trial |
+| Effect type | 15 active (19 defined) | Random assignment per trial |
 | Effect magnitude | Continuous / ordinal within type | Nested within effect type |
 | Effect group | A or B | 50 each (globally balanced) |
 
@@ -226,37 +226,48 @@ These criteria ensure that null-effect trials show no systematic group differenc
 
 ---
 
-## Suggested Analysis
+## Data Quality
 
-Given the ordinal response and repeated-measures structure, a **cumulative link mixed model (CLMM)** or **ordinal logistic mixed model** is appropriate.
+Participants will be filtered based on attention checks to be determined after the pilot run, Basic ideas
+1. require reasonable responses for null and strong effects on average
+2. check some response patterns (repeats and sawtooths)
+3. check response times for rapid clicking
 
-**Fixed effects to consider:**
-- Chart type (primary factor; 4 levels, within-subjects)
-- Effect type and/or effect magnitude (covariate; captures stimulus difficulty)
-- Distribution family (only is lognormal or binomial is reintroduced)
-- Effect group (within-subjects
-- Display orientation (between-subjects)
-- Jitter method (between-subjects; note: only affects dot plot trials)
-- Background familiarity covariates (from pre-study questionnaire)
-- Lag-1 rating (to account for sequential dependency / anchoring bias)
+---
 
-**Random effects:**
-- Participant intercept (to account for between-participant differences in scale usage)
-- Possibly random slopes for chart type within participant
+## Analysis Plans
 
-**Primary comparison:** Chart type main effect and pairwise contrasts, estimated net of effect magnitude and distribution family.
+Not sure if response needs to be ordinal or treated linear (which I believe is common treatment for Likert scales).
+
+General plan is to collect enough samples so that between subjects effects will balance out but to also try a full factor random effects model.
+
+Hoping to clarify after pilot runs. During pilot runs, effect magnitudes can be adjusted.
+
+**Primary comparison:** Response versus effect magnitude by various factors, especially chart type.
+
+---
+
+## Hypotheses
+
+### Hot Takes
+1. Bimodal effects are detected at lower magnitudes with box plots than with violin plots.
+1. Adding dots to violin and box plots decrease response quality.
+1. Beewarm jitter performs worse than the others.
+1. Though least familiar, the bands charts are no worse than the others.
+
+### Cold Takes
+1. Chart orientation doesn't affect response quality.
+1. Skew is the hardest strong effect to detect.
+1. Range Bar makes the mild outlier effect look strongish.
+
 
 ---
 
 ## Design Limitations
 
-1. **Effect type is not balanced within chart type.** The interaction of effect type × chart type cannot be cleanly estimated within a single participant. The random assignment means some participants will encounter a given chart type more often paired with easy effects and others with hard ones; this averages out across participants but limits within-participant analysis.
-
-2. **Jitter factor is partially confounded with chart type.** Jitter only affects dot plot rendering; its effect on other chart types is by definition zero. This limits the interpretability of a jitter main effect and necessitates a jitter × chart type interaction term if jitter is of interest.
-
-3. **Variant × chart type conflation.** Variants within a chart type category differ meaningfully in information content (e.g., box plot alone vs. box plot with individual data points overlaid). Analyses that collapse across variants within a category may mask substantial variant effects; analyses that treat variants as separate levels expand the factor considerably. 
-
-4. **effectGroup balance is global, not stratified.** Within any chart type or distribution subset, effectGroup assignment may deviate from 50/50, though large deviations are unlikely given 25 trials per chart type.
+1. **Each participant only sees a small number of chart types.** That makes it harder to analyze chart effects since it's between-participant, but it makes the training simpler (each participant only has to learn one variant of each of the four chart types), which hopefully makes the response quality better, and it's consistent with real world chart usage by an analyst.
+1. **Same for jitter types**
+1. **Anchoring could be a problem** That is, where one response is biased by the previous response. Either a tendency to rate the same, or a relative rating. The usual fixes seem worse: re-arranging response buttons, required pauses between questions, ...
 
 ---
 
