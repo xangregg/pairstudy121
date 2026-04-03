@@ -5,7 +5,7 @@
 export const N_PER_GROUP = 50;
 
 // localStorage key — bump the version suffix whenever the session format changes incompatibly
-export const STORAGE_KEY = "single_panel_study_v15";
+export const STORAGE_KEY = "single_panel_study_v17";
 
 // Minimum delay (ms) before rating buttons activate, to discourage impulsive responses
 // Tempted to set it to 2+ seconds to allow reasonable consideration, but

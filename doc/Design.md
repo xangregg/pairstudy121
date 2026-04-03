@@ -12,8 +12,8 @@ Author: Xan Gregg using Claude Code
 
 - How do different chart types compare in their ability to convey distributional differences between groups:
   - overall?
-  - for each specific effect type?
-- For each chart type and effect type, how does the rating relate to the effect magnitude? Especially, is there a limit of perceptibility for each combination?
+  - for each specific signal type?
+- For each chart type and signal type, how does the rating relate to the signal magnitude? Especially, is there a limit of perceptibility for each combination?
 - Do overlaid dots help or hinder perception of differences?
 - Do box plots detect bimodality as well as violin plots?
 - Without any hinting about outliers, will participants ignore them?
@@ -24,7 +24,7 @@ There are interesting questions for almost any combination of factors.
 
 ## Study Factors
 
-Each trial presents a single canvas containing two statistical charts of the same type side by side (labeled A and B). Each chart represents 50 data values sampled from a specified distribution. In trials with a non-null effect, one group has an introduced difference in location, scale, or shape; in null trials both groups are drawn from the same base distribution.
+Each trial presents a single canvas containing two statistical charts of the same type side by side (labeled A and B). Each chart represents 50 data values sampled from a specified distribution. In trials with a non-null signal, one group has an introduced difference in location, spread, or shape; in null trials both groups are drawn from the same base distribution.
 
 <figure style="text-align: center">
     <img src="../images/trialbox.png" width="500" alt="Example trial showing a box plot pair">
@@ -74,24 +74,24 @@ The survey app supports up to three base distributions to generate the raw data 
 | Lognormal | 0% (0/100)       | Right-skewed; rendered on normalized scale |
 | Binomial | 0% (0/100)       | n = 10, p = 0.2 base; normalized to ~N(0,1) scale |
 
-### Effects
+### Signals
 
-An *effect* is a modification applied to one of the two groups to create a potentially detectable difference. Each trial draws one effect from the applicable distribution's effect pool using weighted random sampling. The null effect (no modification) is included in each pool. Effects with weight 0 are defined but excluded from sampling.
+A *signal* is a modification applied to one of the two groups to create a potentially detectable difference. Each trial draws one signal from the applicable distribution's signal pool using weighted random sampling. The null signal (no modification) is included in each pool. Signals with weight 0 are defined but excluded from sampling.
 
-Each effect has a *level* (null / weak / moderate / strong) used for alignment scoring on the completion page.
+Each signal has a *level* (null / weak / moderate / strong) used for alignment scoring on the completion page.
 
-**Normal distribution — 15 active effect types (weight > 0):**
+**Normal distribution — 15 active signal types (weight > 0):**
 
-| Effect type | Parameters | Level | Weight |
+| Signal type | Parameters | Level | Weight |
 |---|---|---|---|
 | Null | — | null | 12 |
 | Location shift | Δ = 0.5 SD | weak | 5 |
 | Location shift | Δ = 0.8 SD | moderate | 10 |
 | Location shift | Δ = 1.1 SD | strong | 10 |
 | Location shift | Δ = 1.4 SD | strong | 5 |
-| Scale change | Factor = 1.2× | weak | 5 |
-| Scale change | Factor = 1.5× | moderate | 10 |
-| Scale change | Factor = 1.8× | strong | 5 |
+| Spread change | Factor = 1.2× | weak | 5 |
+| Spread change | Factor = 1.5× | moderate | 10 |
+| Spread change | Factor = 1.8× | strong | 5 |
 | Skew | Skew-normal α = 5; mean-centered (µ=0), SD ≈ 0.62 | moderate | 5 |
 | Skew | Skew-normal α = 7; mean-centered (µ=0), SD ≈ 0.51 | strong | 5 |
 | Bimodal | Separation = 2.0 SD | weak | 8 |
@@ -100,39 +100,39 @@ Each effect has a *level* (null / weak / moderate / strong) used for alignment s
 | Bimodal | Separation = 5.0 SD | strong | 2 |
 | Outlier | 1 high value at 4.0 SD magnitude | weak | 5 |
 
-**Lognormal distribution — 10 effect types:**
+**Lognormal distribution — 10 signal types:**
 
-| Effect type | Parameters |
+| Signal type | Parameters |
 |---|---|
 | Null | — |
 | Location | Ratio = 1.2, 1.3, 1.4, 1.5, 1.6 (5 levels) |
-| Scale | Factor = 1.2×, 1.4×, 1.6×, 1.8× (4 levels) |
+| Spread | Factor = 1.2×, 1.4×, 1.6×, 1.8× (4 levels) |
 
-**Binomial distribution — 5 effect types:**
+**Binomial distribution — 5 signal types:**
 
-| Effect type | Parameters |
+| Signal type | Parameters |
 |---|---|
 | Null | — |
 | Parameter change | (n=10, p=0.1), (n=10, p=0.3), (n=10, p=0.4), (n=5, p=0.2) |
 
-### Effect Assignment
+### Signal Assignment
 
-Effects are assigned using weighted random sampling. A pool of exactly 100 effect instances is constructed via the largest-remainder method applied to each effect's weight, then shuffled. This guarantees the total count per effect type is proportional to its weight, with each effect appearing either ⌊100 × w/W⌋ or ⌈100 × w/W⌉ times (where W = sum of all active weights = 103 for normal). Approximate expected counts for the normal distribution:
+Signals are assigned using weighted random sampling. A pool of exactly 100 signal instances is constructed via the largest-remainder method applied to each signal's weight, then shuffled. This guarantees the total count per signal type is proportional to its weight, with each signal appearing either ⌊100 × w/W⌋ or ⌈100 × w/W⌉ times (where W = sum of all active weights = 103 for normal). Approximate expected counts for the normal distribution:
 
-| Effect type | Expected trials |
+| Signal type | Expected trials |
 |---|---|
 | Null | ~12 |
 | Location (all levels) | ~29 |
-| Scale (all levels) | ~19 |
+| Spread (all levels) | ~19 |
 | Skew (all levels) | ~10 |
 | Bimodal (all levels) | ~25 |
 | Outlier | ~5 |
 
-Effects are **not balanced within chart type**: a given effect may pair with one chart type more than another within a session, though this averages out across participants.
+Signals are **not balanced within chart type**: a given signal may pair with one chart type more than another within a session, though this averages out across participants.
 
-### Effect Group
+### Signal Group
 
-"Effect group" indicates which of the two displayed groups (A or B) receives the effect. Exactly 50 of each participant's 100 trials assign the effect to group A; 50 assign it to group B. This balance is enforced globally across all 100 trials via a shuffled binary assignment vector. Balance within chart type or distribution subsets is not explicitly enforced but is expected to be approximately 50/50 given 25 trials per chart type.
+"Signal group" indicates which of the two displayed groups (A or B) receives the signal. Exactly 50 of each participant's 100 trials assign the signal to group A; 50 assign it to group B. This balance is enforced globally across all 100 trials via a shuffled binary assignment vector. Balance within chart type or distribution subsets is not explicitly enforced but is expected to be approximately 50/50 given 25 trials per chart type.
 
 ### Participant Background
 
@@ -180,7 +180,7 @@ Participants respond on a 4-point ordinal scale:
 
 Response buttons are suppressed for 500 ms after each trial begins to reduce accidental and impulsive responses. Additionally, the button's hover highlight is disabled until the mouse is moved to reduce anchoring bias.
 
-In addition to the response and design factors, key summary statistics for each trial are also recorded. Though the entire trial data sets can be recovered from the seed, these measures are a convenience for analysis and reporting purposes. An analysis may prefer to use, for instance, the actual mean difference rather than the effect magnitude.
+In addition to the response and design factors, key summary statistics for each trial are also recorded. Though the entire trial data sets can be recovered from the seed, these measures are a convenience for analysis and reporting purposes. An analysis may prefer to use, for instance, the actual mean difference rather than the signal magnitude.
 
 ---
 
@@ -203,9 +203,9 @@ Each participant completes 100 trials presented in randomized order.
 |--------|--------|---------------------------|
 | Chart type | 4 | 25 each                   |
 | Distribution | Normal, Lognormal, Binomial | 100, 0, 0                 |
-| Effect type | 15 active (19 defined) | Random assignment per trial |
-| Effect magnitude | Continuous / ordinal within type | Nested within effect type |
-| Effect group | A or B | 50 each (globally balanced) |
+| Signal type | 15 active (19 defined) | Random assignment per trial |
+| Signal magnitude | Continuous / ordinal within type | Nested within signal type |
+| Signal group | A or B | 50 each (globally balanced) |
 
 Distribution and chart type are crossed within each participant: each combination of chart type × distribution appears with trial counts proportional to the distribution weights (normal: 25 trials per chart type; lognormal and binomial: 0 each).
 
@@ -213,23 +213,23 @@ Distribution and chart type are crossed within each participant: each combinatio
 
 ## Randomization
 
-All randomization uses the mulberry32 pseudo-random number generator (32-bit LFSR). Each participant receives a random seed at first visit. All aspects of the design — chart type and variant assignments, orientation, jitter, trial order, effect draws, effectGroup assignments — are derived deterministically from that seed, ensuring full reproducibility from the participant seed alone.
+All randomization uses the mulberry32 pseudo-random number generator (32-bit LFSR). Each participant receives a random seed at first visit. All aspects of the design — chart type and variant assignments, orientation, jitter, trial order, signal draws, signalGroup assignments — are derived deterministically from that seed, ensuring full reproducibility from the participant seed alone.
 
 Data generation uses a fixed pool of 100 algorithmically screened seeds (DATA_SEEDS) that are shuffled separately per distribution and assigned to trials without replacement within a participant. With 100 seeds and at most 100 normal trials per participant, each base dataset appears at most once per participant.
 
 Seeds are selected by scanning integer multiples of 100,000 (starting at 10,100,000) and retaining those that pass two null-balance checks applied independently for both the normal and lognormal, if in use, distributions:
 
 1. **Extremes check:** the difference between groups A and B in their maximum values, and separately in their minimum values, must each be less than a threshold fraction of the combined range (0.30 for normal, 0.40 for lognormal). This screens out seeds where one group's tail placement is deceptively extreme relative to the other.
-2. **Mean check (Cohen's d):** the standardized mean difference between groups A and B must satisfy |d| < 0.25, where d is computed using the pooled sample standard deviation. This threshold is distribution-agnostic and corresponds approximately to a Welch's t-statistic of 1.25 (two-tailed p ≈ 0.21). Seeds with a larger mean difference would look deceptively shifted under a null effect.
+2. **Mean check (Cohen's d):** the standardized mean difference between groups A and B must satisfy |d| < 0.25, where d is computed using the pooled sample standard deviation. This threshold is distribution-agnostic and corresponds approximately to a Welch's t-statistic of 1.25 (two-tailed p ≈ 0.21). Seeds with a larger mean difference would look deceptively shifted under a null signal.
 
-These criteria ensure that null-effect trials show no systematic group difference beyond natural random-sampling variation.
+These criteria ensure that null-signal trials show no systematic group difference beyond natural random-sampling variation.
 
 ---
 
 ## Data Quality
 
 Participants will be filtered based on attention checks to be determined after the pilot run, Basic ideas
-1. require reasonable responses for null and strong effects on average
+1. require reasonable responses for null and strong signals on average
 2. check some response patterns (repeats and sawtooths)
 3. check response times for rapid clicking
 
@@ -241,24 +241,24 @@ Not sure if response needs to be ordinal or treated linear (which I believe is c
 
 General plan is to collect enough samples so that between subjects effects will balance out but to also try a full factor random effects model.
 
-Hoping to clarify after pilot runs. During pilot runs, effect magnitudes can be adjusted.
+Hoping to clarify after pilot runs. During pilot runs, signal magnitudes can be adjusted.
 
-**Primary comparison:** Response versus effect magnitude by various factors, especially chart type.
+**Primary comparison:** Response versus signal magnitude by various factors, especially chart type.
 
 ---
 
 ## Hypotheses
 
 ### Hot Takes
-1. Bimodal effects are detected at lower magnitudes with box plots than with violin plots.
+1. Bimodal signals are detected at lower magnitudes with box plots than with violin plots.
 1. Adding dots to violin and box plots decrease response quality.
-1. Beewarm jitter performs worse than the others.
+1. Beeswarm jitter performs worse than the others.
 1. Though least familiar, the bands charts are no worse than the others.
 
 ### Cold Takes
 1. Chart orientation doesn't affect response quality.
-1. Skew is the hardest strong effect to detect.
-1. Range Bar makes the mild outlier effect look strongish.
+1. Skew is the hardest strong signal to detect.
+1. Range Bar makes the mild outlier signal look strongish.
 
 
 ---

@@ -106,7 +106,7 @@ create table responses (
     jitter          text,
     distribution    text,
     effect_type     text,
-    effect          jsonb,      -- full effect object
+    effect          jsonb,      -- full signal object
     effect_group    integer,    -- 0 = group A, 1 = group B
     rating          smallint,   -- 1–4
     rt_ms           integer,

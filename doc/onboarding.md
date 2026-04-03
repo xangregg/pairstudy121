@@ -92,7 +92,7 @@ Participants likely have little or no technical background, so some upfront trai
 2. 4-panel layout — start with 1x4 (for vertical mode) and 4x1 (for horizontal mode). I want respondents to get used to seeing charts side by side.
 3. Third page source chart — All four panels should
    share a common y-axis scale (derived from the union of both sources). The second source should be created with a smaller spread/scale effect, so it should cause minimal disruption to the shared scale
-4. Chart type example charts — yes, these are null-effect (same source, both samples) just to
+4. Chart type example charts — yes, these are null-signal (same source, both samples) just to
    illustrate the chart type. I mentioned lognormal with hopes it would better illustrate some of the chart features with its asymetry.
 5. Background questionnaire placement — I'm thinking after onboarding. (*now a beginning of onboarding*)
 6. Source chart label — OK, let's label the source charts.
