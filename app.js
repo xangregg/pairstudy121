@@ -96,6 +96,8 @@ const UI = {
     completionDownloadBtn: document.getElementById("completionDownloadBtn"),
     completionDownloadDesignBtn: document.getElementById("completionDownloadDesignBtn"),
     completionResetBtn: document.getElementById("completionResetBtn"),
+    againBtn: document.getElementById("againBtn"),
+    againNote: document.getElementById("againNote"),
 };
 
 let currentTrial = null;
@@ -502,15 +504,17 @@ function getOnboardingSteps() {
     });
     const sortedIndices = Array.from({length: n}, (_, i) => i)
         .sort((a, b) => firstOccurrence[a] - firstOccurrence[b]);
-    return [
-        {type: "background"},
-        {type: "sampling1"},
-        {type: "sampling2"},
-        {type: "sampling3"},
+    const steps = [];
+    if (!session.skipIntro) {
+        steps.push({type: "background"});
+        steps.push({type: "sampling1"}, {type: "sampling2"}, {type: "sampling3"});
+    }
+    steps.push(
         {type: "chartTypeIntro"},
         ...sortedIndices.map(i => ({type: "chartType", index: i})),
         {type: "responseScale"},
-    ];
+    );
+    return steps;
 }
 
 // Fixed onboarding data — same for all participants.
@@ -696,7 +700,7 @@ function renderOnboardingStep() {
     else if (step.type === "chartType") {
         const ct = session.design.selectedChartTypes[step.index];
         const opts = getLiveCatalogOptions(ct);
-        UI.onboardingTitle.textContent = `How to read: ${opts.description}`;
+        UI.onboardingTitle.textContent = `How to read: ${opts.titleText ?? opts.description}`;
         const expl = typeof opts.explanation === "function" ? opts.explanation() : (opts.explanation ?? "");
         UI.onboardingText.innerHTML =
             `<p>${expl}</p>
@@ -945,6 +949,10 @@ function finishStudy() {
         btn.href = `https://app.prolific.com/submissions/complete?cc=${encodeURIComponent(COMPLETION_CODE)}`;
         btn.style.display = "inline-block";
     }
+    else {
+        UI.againBtn.style.display = "inline-block";
+        UI.againNote.style.display = "block";
+    }
 }
 
 
@@ -1058,6 +1066,16 @@ function resetSession() {
     renderIntroThumbnails();
 }
 
+function resetAndRerun() {
+    const savedBackground = session.background;
+    resetSession();
+    if (savedBackground) {
+        session.background = savedBackground;
+        session.skipIntro = true;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    }
+}
+
 /** ---------- Wire up ---------- **/
 UI.introStartBtn.addEventListener("click", beginSession);
 UI.onboardingContinueBtn.addEventListener("click", advanceOnboarding);
@@ -1087,6 +1105,7 @@ UI.submitCommentBtn.addEventListener("click", () => {
 UI.completionDownloadBtn.addEventListener("click", downloadResults);
 UI.completionDownloadDesignBtn.addEventListener("click", downloadDesign);
 UI.completionResetBtn.addEventListener("click", resetSession);
+UI.againBtn.addEventListener("click", resetAndRerun);
 
 for (const b of UI.ratingBtns) {
     b.addEventListener("click", () => recordResponse(parseInt(b.dataset.rating, 10)));

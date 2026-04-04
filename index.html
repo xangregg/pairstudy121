@@ -215,6 +215,8 @@
         #commentField:focus { outline: none; border-color: var(--text-muted); }
         .completion-comment-footer { display: flex; align-items: center; gap: 14px; margin-top: 10px; }
         #commentStatus { font-size: 16px; color: var(--text-muted); }
+        #againBtn { margin-left: auto; font-size: 16px; padding: 6px 14px; }
+        #againNote { font-size: 13px; color: var(--text-faint); margin-top: 6px; text-align: right; }
         .completion-actions { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
         .completion-actions button { font-size: 16px; padding: 6px 12px; color: var(--text-faint); }
         #prolificReturnBtn {
@@ -316,7 +318,9 @@
     <div class="completion-comment-footer">
         <button id="submitCommentBtn">Submit comment</button>
         <span id="commentStatus"></span>
+        <button id="againBtn" style="display:none;">Again!</button>
     </div>
+    <p id="againNote" style="display:none;">Reruns the study with a new set of chart variations</p>
     <a id="prolificReturnBtn" href="#">Return to Prolific</a>
     <div id="prolificCompletionCode" style="display:none; margin-top:16px;">
         <p class="completion-comment-prompt">The button above includes the completion code in its Prolfic link.<br/>If you prefer to enter the code manually, use: <strong id="completionCodeText"></strong>

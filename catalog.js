@@ -25,6 +25,7 @@ export function buildCatalog(currentOrientation, currentSession) {
         {
             type: "box", variants: [
                 {
+                    titleText: "Box plot",
                     description: "Box plot: median, quartiles, and outlier range lines",
                     explanation: () => `A box plot shows the middle 50% of values as a rectangle, with a ${horizontalWord()} line at the median.` +
                         ` Thin ${verticalWord()} lines (whiskers) extend to values within 1.5 times the box ${heightWord()}` +
@@ -32,6 +33,7 @@ export function buildCatalog(currentOrientation, currentSession) {
                     showDots: false
                 },
                 {
+                    titleText: "Box plot",
                     description: "Box plot with dots: median, quartiles, and outlier range lines",
                     explanation: () => `A box plot shows the middle 50% of values as a rectangle, with a ${horizontalWord()} line at the median.` +
                         ` Thin ${verticalWord()} lines (whiskers) extend to values within 1.5 times the box ${heightWord()}` +
@@ -39,6 +41,7 @@ export function buildCatalog(currentOrientation, currentSession) {
                     showDots: true
                 },
                 {
+                    titleText: "Range bar",
                     description: "Range bar: median, quartiles, and data range lines",
                     explanation: () => `A range bar shows the middle 50% of values as a rectangle, with a thick ${horizontalWord()} line at the median.` +
                         ` Thin ${verticalWord()} lines extend to cover the range of data values.`,
@@ -49,6 +52,7 @@ export function buildCatalog(currentOrientation, currentSession) {
         {
             type: "bands", variants: [
                 {
+                    titleText: "Central bands",
                     description: "Central bands (66%, 90%, 99%) with median",
                     explanation: () => `Nested bands show where the data falls: the darkest inner band contains the middle 66% of values, ` +
                         `the next contains 90%, and the outer band contains 99%. A ${horizontalWord()} line marks the median. ` +
@@ -56,6 +60,7 @@ export function buildCatalog(currentOrientation, currentSession) {
                     bandType: "quantile", cutoffs: [0.66, 0.90, 0.99], showMedian: true, showMode: false, showDots: false
                 },
                 {
+                    titleText: "Density bands",
                     description: "Density bands (50%, 90%, 99%) with mode",
                     explanation: () => `Shaded bands show where values are most densely concentrated. ` +
                         `The darkest shade contains the densest 50% of values; ` +
@@ -65,6 +70,7 @@ export function buildCatalog(currentOrientation, currentSession) {
                     bandType: "hdr", cutoffs: [0.50, 0.90, 0.99], showMedian: false, showMode: true
                 },
                 {
+                    titleText: "Density bands",
                     description: "Density bands (5%, 50%, 90%)",
                     explanation: () => `Shaded bands show where values are most densely concentrated. ` +
                         `The darkest shade contains the densest 5% of values; ` +
@@ -74,6 +80,7 @@ export function buildCatalog(currentOrientation, currentSession) {
                     bandType: "hdr", cutoffs: [0.05, 0.50, 0.90], showMedian: false, showMode: false
                 },
                 {
+                    titleText: "Density bands",
                     description: "Density bands (33%, 67%, 100%)",
                     explanation: () => `Shaded bands show where values are most densely concentrated. ` +
                         `The darkest shade contains the densest 33% of values; ` +
@@ -86,6 +93,7 @@ export function buildCatalog(currentOrientation, currentSession) {
         {
             type: "dot", variants: [
                 {
+                    titleText: "Dot plot",
                     description: "Dot plot with median",
                     explanation: () => `Each dot represents one data value. ` +
                         `${jitterDesc(currentSession().design.jitter)} ` +
@@ -93,6 +101,7 @@ export function buildCatalog(currentOrientation, currentSession) {
                     showMedian: true
                 },
                 {
+                    titleText: "Dot plot",
                     description: "Dot plot",
                     explanation: () => `Each dot represents one data value. ` +
                         `${jitterDesc(currentSession().design.jitter)}`,
@@ -103,12 +112,14 @@ export function buildCatalog(currentOrientation, currentSession) {
         {
             type: "violin", variants: [
                 {
+                    titleText: "Violin plot",
                     description: "Violin plot: smoothed distribution",
                     explanation: () => `A violin plot traces the full distribution shape as a smooth symmetric outline. ` +
                         `Wider sections indicate where values are more common.`,
                     showDots: false, showMedian: false
                 },
                 {
+                    titleText: "Violin plot",
                     description: "Violin plot with box: smoothed distribution with median and quartiles",
                     explanation: () => `A violin outline traces the full distribution shape as a smooth symmetric outline. ` +
                         `Wider sections indicate where values are more common. ` +
@@ -116,6 +127,7 @@ export function buildCatalog(currentOrientation, currentSession) {
                     showDots: false, showMedian: false, showBox: true
                 },
                 {
+                    titleText: "Violin plot",
                     description: "Violin plot with dots: smoothed distribution",
                     explanation: () => `A violin outline traces the full distribution shape as a smooth symmetric outline. ` +
                         `Wider sections indicate where values are more common. ` +
@@ -123,6 +135,7 @@ export function buildCatalog(currentOrientation, currentSession) {
                     showDots: true, showMedian: false
                 },
                 {
+                    titleText: "Violin plot",
                     description: "Violin plot with median: smoothed distribution",
                     explanation: () => `A violin outline traces the full distribution shape as a smooth symmetric outline. ` +
                         `Wider sections indicate where values are more common. ` +
