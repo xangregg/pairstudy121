@@ -251,9 +251,10 @@ Hoping to clarify after pilot runs. During pilot runs, signal magnitudes can be 
 
 ### Hot Takes
 1. Bimodal signals are detected at lower magnitudes with box plots than with violin plots.
-1. Adding dots to violin and box plots decrease response quality.
-1. Beeswarm jitter performs worse than the others.
+1. Adding dots to violin and box plots decrease response quality, diminishing surprise response.
+1. Beeswarm jitter performs worse than the others, exaggerating surprise response.
 1. Though least familiar, the bands charts are no worse than the others.
+1. Density bands charts are better that all others at bimodal data.
 
 ### Cold Takes
 1. Chart orientation doesn't affect response quality.
