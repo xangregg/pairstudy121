@@ -35,36 +35,48 @@ export function loadOrCreateSession() {
     return session;
 }
 
-export function postResponse(session, trial, rating, rtMs, finishedAt = null, stats = null, noSubmit = false) {
+// Scale raw data values (in SD units) to integers 0–1000 over a ±5 SD range.
+// Invertible: value = i / 100 - 5
+function scaleData(values) {
+    return values.map(v => Math.max(0, Math.min(1000, Math.round((v + 5) / 10 * 1000))));
+}
+
+export function postResponse(session, trial, rating, rtMs, finishedAt = null, panel = null, noSubmit = false) {
     const cond = trial.condition;
+    const sig = cond.signal;
+
     const row = {
         participant_id: session.participantId,
-        trial_index: trial.trialIdx,
-        trial_seed: trial.trialSeed,
-        data_seed: cond.dataSeed,
-        chart_type: cond.chartType,
-        chart_variant: JSON.stringify(cond.chartOptions ?? {}),
-        orientation: session.design.orientation,
-        jitter: session.design.jitter,
-        distribution: cond.dist,
-        effect_type: cond.signal.type,
-        effect: cond.signal,
-        effect_group: cond.signalGroup,
+        trial_index:    trial.trialIdx,
+        trial_seed:     trial.trialSeed,
+        data_seed:      cond.dataSeed,
+        chart_type:     cond.chartType,
+        chart_variant:  JSON.stringify(cond.chartOptions ?? {}),
+        orientation:    session.design.orientation,
+        jitter:         session.design.jitter,
+        distribution:   cond.dist,
+        signal_group:   cond.signalGroup,
+        // independent signal factors; neutral values when not applied
+        location: sig.delta_sd      ?? 0,
+        spread:   sig.spread_factor ?? 1,
+        skew:     sig.alpha         ?? 0,
+        bimodal:  sig.separation    ?? 0,
+        // outlier: +n = n high, -n = n low, m*100+n = m high and n low (mixed, conspicuous)
+        outlier:  sig.nHigh != null
+            ? (sig.nHigh > 0 && sig.nLow > 0) ? sig.nHigh * 100 + sig.nLow
+            : sig.nHigh > 0 ? sig.nHigh : -sig.nLow
+            : 0,
         rating,
-        rt_ms: rtMs,
-        viewport_w: window.innerWidth,
-        viewport_h: window.innerHeight,
+        rt_ms:       rtMs,
         finished_at: finishedAt,
     };
-    if (stats) {
-        row.a_mean = stats.a.mean; row.a_sd = stats.a.sd;
-        row.a_min = stats.a.min; row.a_q1 = stats.a.q1; row.a_med = stats.a.med; row.a_q3 = stats.a.q3; row.a_max = stats.a.max;
-        row.b_mean = stats.b.mean; row.b_sd = stats.b.sd;
-        row.b_min = stats.b.min; row.b_q1 = stats.b.q1; row.b_med = stats.b.med; row.b_q3 = stats.b.q3; row.b_max = stats.b.max;
+    if (panel) {
+        row.a_data = scaleData(panel.groups[0]);
+        row.b_data = scaleData(panel.groups[1]);
     }
     if (noSubmit)
         return;
-    fetch(`${SUPA_URL}/rest/v1/responses`, {
+    fetch(`${SUPA_URL}/rest/v1/trials`, {
         method: "POST",
         headers: {
             "apikey": SUPA_KEY,

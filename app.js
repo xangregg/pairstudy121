@@ -531,8 +531,8 @@ function getOnboardingPanels() {
     // Page 3: two different sources (source 2: mean +1.2, scale 0.65), one sample each
     const src3a = Array.from({length: N_SRC}, () => randomNormal(rng));
     const s3a = Array.from({length: N_PER_GROUP}, () => randomNormal(rng));
-    const src3b = Array.from({length: N_SRC}, () => randomNormal(rng) * 0.65 + 1.2);
-    const s3b = Array.from({length: N_PER_GROUP}, () => randomNormal(rng) * 0.65 + 1.2);
+    const src3b = Array.from({length: N_SRC}, () => randomNormal(rng) * 0.65 + 0.2);
+    const s3b = Array.from({length: N_PER_GROUP}, () => randomNormal(rng) * 0.65 + 0.2);
 
     const panel1 = finalizePanel(
         [...src1, ...s2a],
@@ -674,8 +674,8 @@ function renderOnboardingStep() {
         UI.onboardingTitle.textContent = "Different Sources, Different Samples";
         UI.onboardingText.innerHTML =
             `<p>Below are two different sources, each with one random sample.
-            Sources can differ in location, spread, or shape.
-            Source 2 has higher values and less spread.
+            Sources can differ in <strong>location</strong>, <strong>spread</strong>, or <strong>shape</strong>.
+            Source 2 has a slightly offset central location and less spread.
             Notice how samples A and B also look different from each other.</p>`;
         const {panel3} = getOnboardingPanels();
         renderSamplingCanvas(panel3, ["Source 1", "A", "Source 2", "B"]);
@@ -965,7 +965,7 @@ function recordResponse(rating) {
     });
     session.trialIndex = currentTrial.trialIdx + 1;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-    postResponse(session, currentTrial, rating, rtMs, finishedAt, stats, NOSUBMIT);
+    postResponse(session, currentTrial, rating, rtMs, finishedAt, currentTrial.panel, NOSUBMIT);
     setRatingEnabled(false);
     nextTrial();
 }

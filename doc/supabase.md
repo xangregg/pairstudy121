@@ -89,9 +89,57 @@ create table sessions (
 );
 ```
 
-### `responses`
+### `trials`
 
-One row per trial rating, written immediately after each response.
+One row per trial rating, written immediately after each response. Replaces the older `responses` table.
+
+**Seeds:** `data_seed` is drawn from the screened DATA_SEEDS pool and fully determines the base sample
+values for both groups — sufficient to reconstruct the raw data given the signal parameters.
+`trial_seed` is derived from the participant seed + trial index + condition and drives within-trial
+randomization (e.g. rendering details). `a_data`/`b_data` store the same data redundantly for
+analysis convenience, avoiding the need to keep analysis code in sync with the survey's data generation.
+
+**Raw data scaling:** values are integers 0–1000 over a ±5 SD range; invertible via `value = i / 100.0 - 5`.
+In CSV exports, `smallint[]` columns appear as `{v1,v2,...}` strings.
+
+```sql
+create table trials (
+    id              bigint generated always as identity primary key,
+    participant_id  text references sessions(participant_id),
+    trial_index     integer,
+    trial_seed      bigint,     -- derived from participant seed + trial index + condition; drives within-trial RNG
+    data_seed       bigint,     -- from screened DATA_SEEDS pool; determines base sample values for both groups
+    chart_type      text,
+    chart_variant   text,       -- JSON string of chart options
+    orientation     text,
+    jitter          text,
+    distribution    text,
+    signal_group    integer,    -- 0 = group A received signal, 1 = group B
+
+    -- independent signal factors; neutral value when not applied (0 for all except spread where neutral = 1)
+    location        real,       -- delta in SD units (0 = no shift)
+    spread          real,       -- scale factor (1 = no change)
+    skew            real,       -- skew-normal alpha (0 = symmetric)
+    bimodal         real,       -- mode separation in SD units (0 = unimodal)
+    outlier         smallint,   -- +n = n high, -n = n low, m*100+n = m high and n low (0 = none)
+
+    rating          smallint,   -- 1–4
+    rt_ms           integer,
+    finished_at     timestamptz, -- non-null on final trial only; use with sessions.started_at for session duration
+
+    -- raw data scaled to 0–1000 (±5 SD range); redundant with data_seed but convenient for analysis
+    a_data          smallint[],
+    b_data          smallint[]
+);
+
+-- RLS
+alter table trials enable row level security;
+create policy "anon insert" on trials for insert to anon with check (true);
+```
+
+### `responses` (legacy)
+
+Kept for pilot data collected before the `trials` table was introduced. Not written to by current code.
 
 ```sql
 create table responses (
@@ -101,20 +149,18 @@ create table responses (
     trial_seed      bigint,
     data_seed       bigint,
     chart_type      text,
-    chart_variant   text,       -- JSON string of chart options
+    chart_variant   text,
     orientation     text,
     jitter          text,
     distribution    text,
     effect_type     text,
-    effect          jsonb,      -- full signal object
-    effect_group    integer,    -- 0 = group A, 1 = group B
-    rating          smallint,   -- 1–4
+    effect          jsonb,
+    effect_group    integer,
+    rating          smallint,
     rt_ms           integer,
     viewport_w      integer,
     viewport_h      integer,
-    finished_at     timestamptz,  -- non-null on the final trial only
-
-    -- per-group summary statistics (recorded as a convenience for analysis)
+    finished_at     timestamptz,
     a_mean  real, a_sd real, a_min real, a_q1 real, a_med real, a_q3 real, a_max real,
     b_mean  real, b_sd real, b_min real, b_q1 real, b_med real, b_q3 real, b_max real
 );
