@@ -92,8 +92,8 @@ Each signal has a *level* (null / weak / moderate / strong) used for alignment s
 | Spread change | Factor = 1.2× | weak | 5 |
 | Spread change | Factor = 1.5× | moderate | 10 |
 | Spread change | Factor = 1.8× | strong | 5 |
-| Skew | Skew-normal α = 5; mean-centered (µ=0), SD ≈ 0.62 | moderate | 5 |
-| Skew | Skew-normal α = 7; mean-centered (µ=0), SD ≈ 0.51 | strong | 5 |
+| Skew | Skew-normal α = 5; median-centered, spread-normalized (SD ≈ 1) | moderate | 5 |
+| Skew | Skew-normal α = 7; median-centered, spread-normalized (SD ≈ 1) | strong | 5 |
 | Bimodal | Separation = 2.0 SD | weak | 8 |
 | Bimodal | Separation = 3.0 SD | moderate | 8 |
 | Bimodal | Separation = 4.0 SD | strong | 8 |

@@ -267,13 +267,15 @@ function applySignal(panel, dist, signal, rng, signalGroup = 1) {
         // Probability integral transform: map each existing z ~ N(0,1) to the same quantile
         // in SN(alpha), then standardize to mean 0.
         // This is a deterministic transform of the base data — no new RNG draws needed.
-        const alpha = signal.alpha;
-        const delta = alpha / Math.sqrt(1 + alpha * alpha);
-        const mu    = delta * Math.sqrt(2 / Math.PI);
-        // const sigma = Math.sqrt(1 - 2 * delta * delta / Math.PI);
+        // Median-center and normalize spread so the two groups have matched medians and
+        // matched SD (~1), leaving asymmetric quartiles/tails as the signal.
+        const alpha  = signal.alpha;
+        const delta  = alpha / Math.sqrt(1 + alpha * alpha);
+        const sigma  = Math.sqrt(1 - 2 * delta * delta / Math.PI);
+        const median = normalToSkewNormal(0, alpha);
         for (let i = 0; i < panel.y.length; i++) {
             if (panel.group[i] !== signalGroup) continue;
-            panel.y[i] = (normalToSkewNormal(panel.y[i], alpha) - mu);
+            panel.y[i] = (normalToSkewNormal(panel.y[i], alpha) - median) / sigma;
         }
         return panel;
     }
@@ -1103,7 +1105,7 @@ if (params.get("diagnostics") !== "true" && !SEEDREVIEW_DIST && !SKEWPREVIEW) {
 function renderSkewPreview() {
     // Replace the entire body with a self-contained preview grid.
     // Shows null N(0,1) paired with normalized SN(alpha) for each alpha in the study.
-    const ALPHAS = [-5, -4, -2, 2, 4, 5];
+    const ALPHAS = [-7, -5, -3, 3, 5, 7];
     const N = 500;
     const CHART_TYPES = ["violin", "box"];
     const rng = mulberry32(0xA1B2C3D4);
@@ -1120,17 +1122,17 @@ function renderSkewPreview() {
     document.body.appendChild(title);
 
     for (const alpha of ALPHAS) {
-        const delta = alpha / Math.sqrt(1 + alpha * alpha);
-        const mu    = delta * Math.sqrt(2 / Math.PI);
-        const sigma = Math.sqrt(1 - 2 * delta * delta / Math.PI);
+        const delta  = alpha / Math.sqrt(1 + alpha * alpha);
+        const sigma  = Math.sqrt(1 - 2 * delta * delta / Math.PI);
+        const median = normalToSkewNormal(0, alpha);
 
-        // Generate skewed group B, normalized to zero-mean unit-variance SN.
+        // Generate skewed group B, median-centered and spread-normalized.
         // Seed per alpha: spread them out so each alpha gets an independent sequence.
         const skewSeed = (0xA1B2C3D4 + (alpha < 0 ? 0x10000 : 0) + Math.abs(alpha) * 0x1000) >>> 0;
         const skewedRng = mulberry32(skewSeed);
         const skewData = Array.from({length: N}, () => {
             const z = randomNormal(skewedRng);
-            return (normalToSkewNormal(z, alpha) - mu);
+            return (normalToSkewNormal(z, alpha) - median) / sigma;
         }).sort((a, b) => a - b);
 
         const panel = {groups: [nullData.slice(), skewData]};
@@ -1144,7 +1146,7 @@ function renderSkewPreview() {
 
         const heading = document.createElement("p");
         heading.style.cssText = "margin:0 0 8px; font-size:16px; font-weight:600; color:var(--text);";
-        heading.textContent = `α = ${alpha}  (delta=${delta.toFixed(3)}, mu=${mu.toFixed(3)}, sigma=${sigma.toFixed(3)})`;
+        heading.textContent = `α = ${alpha}  (median=${median.toFixed(3)}, sigma=${sigma.toFixed(3)})`;
         section.appendChild(heading);
 
         const row = document.createElement("div");
