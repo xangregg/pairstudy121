@@ -1,0 +1,219 @@
+// design.js — study design construction and signal application
+
+import {shuffleInPlace, normalToSkewNormal} from "./utils.js";
+import {JITTER_CATALOG} from "./config.js";
+
+// Build a pool of nTrials signals drawn with probability proportional to weight.
+// Signals with weight=0 are excluded. Counts are assigned via the largest-remainder
+// method so they sum exactly to nTrials. The pool is then shuffled.
+export function makeWeightedSignalPool(signals, nTrials, rng) {
+    const active = signals.filter(e => (e.weight ?? 10) > 0);
+    const totalWeight = active.reduce((s, e) => s + (e.weight ?? 10), 0);
+    const floats  = active.map(e => (e.weight ?? 10) / totalWeight * nTrials);
+    const counts  = floats.map(f => Math.floor(f));
+    let remaining = nTrials - counts.reduce((a, b) => a + b, 0);
+    const order   = floats.map((f, i) => i).sort((a, b) => (floats[b] - counts[b]) - (floats[a] - counts[a]));
+    for (let i = 0; i < remaining; i++)
+        counts[order[i]]++;
+    const pool = [];
+    for (let i = 0; i < active.length; i++)
+        for (let j = 0; j < counts[i]; j++)
+            pool.push(active[i]);
+    shuffleInPlace(pool, rng);
+    return pool;
+}
+
+export function applySignal(panel, dist, signal, rng, signalGroup = 1) {
+    if (signal.type === "null")
+        return panel;
+
+    if (signal.type === "location") {
+        if (dist !== "lognormal") {
+            for (let i = 0; i < panel.y.length; i++)
+                if (panel.group[i] === signalGroup) panel.y[i] += signal.delta_sd;
+        }
+        else {
+            for (let i = 0; i < panel.y.length; i++)
+                if (panel.group[i] === signalGroup) panel.y[i] *= signal.ratio;
+        }
+        return panel;
+    }
+
+    if (signal.type === "spread") {
+        const k = signal.spread_factor;
+        if (dist !== "lognormal") {
+            for (let i = 0; i < panel.y.length; i++)
+                if (panel.group[i] === signalGroup) panel.y[i] *= k;
+        }
+        else {
+            // Power transform in log-space: exp(log(y)·k) = yᵏ, which spreads log-normal σ by k.
+            for (let i = 0; i < panel.y.length; i++)
+                if (panel.group[i] === signalGroup) panel.y[i] = Math.exp(Math.log(panel.y[i]) * k);
+        }
+        return panel;
+    }
+
+    if (signal.type === "skew") {
+        // Probability integral transform: map each existing z ~ N(0,1) to the same quantile
+        // in SN(alpha), then standardize to mean 0.
+        // This is a deterministic transform of the base data — no new RNG draws needed.
+        // Median-center and normalize spread so the two groups have matched medians and
+        // matched SD (~1), leaving asymmetric quartiles/tails as the signal.
+        const alpha  = signal.alpha;
+        const delta  = alpha / Math.sqrt(1 + alpha * alpha);
+        const sigma  = Math.sqrt(1 - 2 * delta * delta / Math.PI);
+        const median = normalToSkewNormal(0, alpha);
+        for (let i = 0; i < panel.y.length; i++) {
+            if (panel.group[i] !== signalGroup) continue;
+            panel.y[i] = (normalToSkewNormal(panel.y[i], alpha) - median) / sigma;
+        }
+        return panel;
+    }
+
+    if (signal.type === "bimodal") {
+        // Shift each point in the signal group to one of two modes at ±separation/2.
+        for (let i = 0; i < panel.y.length; i++) {
+            if (panel.group[i] !== signalGroup) continue;
+            panel.y[i] = panel.y[i] + (rng() < 0.5 ? -0.5 : 0.5) * signal.separation;
+        }
+
+        // Cap range growth: if the signal group spans more than BIMODAL_MAX_SPAN_RATIO times
+        // the reference group's range, scale it down around its center. This limits how much
+        // participants can use the wider y-axis as a detection cue, while preserving the shape.
+        const BIMODAL_MAX_SPAN_RATIO = 1.2;
+        let refMin = Infinity, refMax = -Infinity, egMin = Infinity, egMax = -Infinity;
+        for (let i = 0; i < panel.y.length; i++) {
+            const y = panel.y[i];
+            if (panel.group[i] === signalGroup) {
+                if (y < egMin) egMin = y;
+                if (y > egMax) egMax = y;
+            }
+            else {
+                if (y < refMin) refMin = y;
+                if (y > refMax) refMax = y;
+            }
+        }
+        const refSpan = (refMax - refMin) || 1;
+        const egSpan  = (egMax  - egMin)  || 1;
+        const maxSpan = refSpan * BIMODAL_MAX_SPAN_RATIO;
+        if (egSpan > maxSpan) {
+            const scale = maxSpan / egSpan;
+            const egCenter = (egMin + egMax) / 2;
+            for (let i = 0; i < panel.y.length; i++) {
+                if (panel.group[i] !== signalGroup) continue;
+                panel.y[i] = egCenter + (panel.y[i] - egCenter) * scale;
+            }
+        }
+        return panel;
+    }
+
+    if (signal.type === "outlier") {
+        const mag = signal.magnitude ?? 4.0;
+        let hi = 0, lo = 0;
+        for (let i = 0; i < panel.y.length; i++) {
+            if (panel.group[i] !== signalGroup) continue;
+            if (hi < signal.nHigh) panel.y[i] = mag + hi++ * 0.4;
+            else if (lo < signal.nLow) panel.y[i] = -mag - lo++ * 0.4;
+            else break;
+        }
+        return panel;
+    }
+
+    throw new Error("Unknown signal type: " + signal.type);
+}
+
+export function makeDesign({rng, catalog, nChartTypes, nVariantTypes, distReps, dataSeeds}) {
+    // Select which chart types this participant sees and which variant(s) of each.
+    // Both are fixed for the whole session (per-participant between-subjects factors).
+    // nVariantTypes = 1 picks one random variant per type (normal use);
+    // set to Infinity (along with nChartTypes) to include all types and all variants.
+    const catalogShuffled = catalog.slice();
+    shuffleInPlace(catalogShuffled, rng);
+    const selectedChartTypes = [];
+    for (const entry of catalogShuffled.slice(0, nChartTypes)) {
+        const variantsShuffled = entry.variants.slice();
+        shuffleInPlace(variantsShuffled, rng);
+        for (const options of variantsShuffled.slice(0, nVariantTypes)) {
+            selectedChartTypes.push({type: entry.type, options});
+        }
+    }
+
+    const distSignals = {
+        normal: [
+            {type: "null",    level: "null",     weight: 12},
+            {type: "location", delta_sd: 0.5, level: "weak",     weight: 5},
+            {type: "location", delta_sd: 0.8, level: "moderate", weight: 10},
+            {type: "location", delta_sd: 1.1, level: "strong",   weight: 10},
+            {type: "location", delta_sd: 1.4, level: "strong",   weight: 5},
+            {type: "spread", spread_factor: 1.2, level: "weak",     weight: 5},
+            {type: "spread", spread_factor: 1.5, level: "moderate", weight: 10},
+            {type: "spread", spread_factor: 1.8, level: "strong",   weight: 5},
+            {type: "skew", alpha:  7, level: "strong",   weight: 5},
+            {type: "skew", alpha:  5, level: "moderate", weight: 5},
+            {type: "skew", alpha:  3, level: "weak",     weight: 0},
+            {type: "skew", alpha: -3, level: "weak",     weight: 0},
+            {type: "skew", alpha: -5, level: "moderate", weight: 0},
+            {type: "bimodal", separation: 5.0, level: "strong",   weight: 2},
+            {type: "bimodal", separation: 4.0, level: "strong",   weight: 8},
+            {type: "bimodal", separation: 3.0, level: "moderate", weight: 8},
+            {type: "bimodal", separation: 2.0, level: "weak",     weight: 8},
+            {type: "outlier", nHigh: 2, nLow: 0, magnitude: 4.0, level: "moderate", weight: 0},
+            {type: "outlier", nHigh: 1, nLow: 0, magnitude: 4.0, level: "weak",     weight: 5},
+            {type: "outlier", nHigh: 0, nLow: 1, magnitude: 4.0, level: "weak",     weight: 0},
+        ],
+        lognormal: [
+            {type: "null",    level: "null",     weight: 10},
+            {type: "location", ratio: 1.2, level: "weak",     weight: 10},
+            {type: "location", ratio: 1.3, level: "weak",     weight: 10},
+            {type: "location", ratio: 1.4, level: "moderate", weight: 10},
+            {type: "location", ratio: 1.5, level: "moderate", weight: 10},
+            {type: "location", ratio: 1.6, level: "strong",   weight: 10},
+            {type: "spread", spread_factor: 1.2, level: "weak",     weight: 10},
+            {type: "spread", spread_factor: 1.4, level: "moderate", weight: 10},
+            {type: "spread", spread_factor: 1.6, level: "moderate", weight: 10},
+            {type: "spread", spread_factor: 1.8, level: "strong",   weight: 10},
+        ],
+        binomial: [
+            {type: "null",   level: "null",     weight: 10},
+            {type: "params", n: 10, p: 0.1, level: "moderate", weight: 10},
+            {type: "params", n: 10, p: 0.3, level: "weak",     weight: 10},
+            {type: "params", n: 10, p: 0.4, level: "strong",   weight: 10},
+            {type: "params", n:  5, p: 0.2, level: "weak",     weight: 10},
+        ],
+    };
+
+    const dists = Object.keys(distSignals);
+    const conditions = [];
+
+    // Build per-distribution seed and signal pools, then assign one condition per slot.
+    const seedPools = {}, signalPools = {}, poolIdxs = {};
+    for (const dist of dists) {
+        const nPerDist = distReps[dist] * selectedChartTypes.length;
+        const seeds = Array.from({length: nPerDist}, (_, i) => dataSeeds[i % dataSeeds.length]);
+        shuffleInPlace(seeds, rng);
+        seedPools[dist] = seeds;
+        signalPools[dist] = makeWeightedSignalPool(distSignals[dist], nPerDist, rng);
+        poolIdxs[dist] = 0;
+    }
+
+    for (const dist of dists) {
+        for (let r = 0; r < distReps[dist]; r++) {
+            for (const {type: chartType, options: chartOptions} of selectedChartTypes) {
+                const idx = poolIdxs[dist]++;
+                const e = signalPools[dist][idx];
+                const dataSeed = seedPools[dist][idx];
+                conditions.push({chartType, chartOptions, dist, signal: e, dataSeed});
+            }
+        }
+    }
+
+    // Assign signalGroup with exact 50/50 balance across all conditions
+    const signalGroups = conditions.map((_, i) => i < Math.floor(conditions.length / 2) ? 0 : 1);
+    shuffleInPlace(signalGroups, rng);
+    conditions.forEach((c, i) => c.signalGroup = signalGroups[i]);
+
+    shuffleInPlace(conditions, rng);
+    const orientation = rng() < 0.5 ? "vertical" : "horizontal";
+    const jitter = JITTER_CATALOG[Math.floor(rng() * JITTER_CATALOG.length)];
+    return {conditions, selectedChartTypes, orientation, jitter, distSignals, distReps, dataSeeds};
+}
