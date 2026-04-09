@@ -1,44 +1,7 @@
 // renderers.js
 // A small renderer collection for multi-group univariate displays.
 
-import {mulberry32} from "./utils.js";
-
-export function quantileSorted(sorted, p) {
-    const n = sorted.length;
-    if (n === 0)
-        return NaN;
-    const idx = (n - 1) * p;
-    const lo = Math.floor(idx);
-    const hi = Math.ceil(idx);
-    const h = idx - lo;
-    return (1 - h) * sorted[lo] + h * sorted[hi];
-}
-
-// values must be pre-sorted ascending (guaranteed by finalizePanel in app.js).
-export function boxStats(values) {
-    const q1 = quantileSorted(values, 0.25);
-    const med = quantileSorted(values, 0.50);
-    const q3 = quantileSorted(values, 0.75);
-    const iqr = q3 - q1;
-    const loFence = q1 - 1.5 * iqr;
-    const hiFence = q3 + 1.5 * iqr;
-
-    let loWhisker = values[0], hiWhisker = values[values.length - 1];
-    for (let i = 0; i < values.length; i++) {
-        if (values[i] >= loFence) {
-            loWhisker = values[i];
-            break;
-        }
-    }
-    for (let i = values.length - 1; i >= 0; i--) {
-        if (values[i] <= hiFence) {
-            hiWhisker = values[i];
-            break;
-        }
-    }
-
-    return {q1, med, q3, loWhisker, hiWhisker};
-}
+import {mulberry32, quantileSorted, boxStats} from "./utils.js";
 
 function splitGroups(panel) {
     return panel.groups;
@@ -49,7 +12,10 @@ function splitGroups(panel) {
 export function beginPlot(ctx, canvas, yMin, yMax, nGroups = 2, opts = {}) {
     const W = canvas.width, H = canvas.height;
     // No left padding needed for y-axis labels; small uniform margin all around.
-    const padL = 14, padR = 14, padT = 16, padB = opts.padB ?? 40;
+    const padL = opts.forThumbnail ? -2 : 14;
+    const padR = opts.forThumbnail ? -2 : 14;
+    const padT = opts.forThumbnail ? 0 : 16;
+    const padB = opts.forThumbnail ? 12 : opts.padB ?? 40;
     const innerW = W - padL - padR;
     const innerH = H - padT - padB;
 
@@ -76,8 +42,10 @@ export function beginPlot(ctx, canvas, yMin, yMax, nGroups = 2, opts = {}) {
     let padInner = innerW / (20 * (nGroups + 1));
     if (W < H)
         padInner *= W / H; // reduce inner padding for square/portrait canvases (horizontal orientation)
-    const groupSpacing = (innerW - 2 * padInner) / nGroups;
+    let groupSpacing = (innerW - 2 * padInner) / nGroups;
     const xs = Array.from({length: nGroups}, (_, i) => padL + padInner + groupSpacing * (2 * i + 1) / 2);
+    if (opts.forThumbnail)
+        groupSpacing *= 1.5;
 
     return {W, H, padL, padR, padT, padB, innerW, innerH, xs, groupSpacing, yMin, yMax, yToPx};
 }
@@ -717,7 +685,7 @@ export function renderChart(ctx, canvas, chartType, panel, yMin, yMax, chartOpti
     const vc = horizontal ? {width: canvas.height, height: canvas.width} : canvas;
 
     const nGroups = panel.groups.length;
-    const plot = beginPlot(ctx, vc, yMin, yMax, nGroups, {padB: chartOptions.padB});
+    const plot = beginPlot(ctx, vc, yMin, yMax, nGroups, {padB: chartOptions.padB, forThumbnail: chartOptions.forThumbnail});
 
     if (chartType === "violin") {
         renderViolinLayer(ctx, plot, panel, {...chartOptions});

@@ -109,9 +109,151 @@ export function makeBinomialSampler(n, p) {
     };
 }
 
+// Piecewise-linear interpolation. xs must be strictly increasing.
+// x outside [xs[0], xs[n-1]] clamps to the corresponding y extreme.
+export function interpolate(x, xs, ys) {
+    if (x <= xs[0])
+        return ys[0];
+    if (x >= xs[xs.length - 1])
+        return ys[ys.length - 1];
+    for (let i = 0; i < xs.length - 1; i++) {
+        if (x <= xs[i + 1]) {
+            const t = (x - xs[i]) / (xs[i + 1] - xs[i]);
+            return ys[i] + t * (ys[i + 1] - ys[i]);
+        }
+    }
+    return ys[ys.length - 1];
+}
+
+// Two-sample Kolmogorov-Smirnov statistic. Both arrays must be pre-sorted ascending.
+// Returns D = max|F1(x) - F2(x)| over all observed values.
+export function ksStat(a, b) {
+    const n1 = a.length, n2 = b.length;
+    let i = 0, j = 0, d = 0;
+    while (i < n1 && j < n2) {
+        const f1 = (i + 1) / n1;
+        const f2 = (j + 1) / n2;
+        if (a[i] <= b[j])
+            i++;
+        else
+            j++;
+        d = Math.max(d, Math.abs(f1 - f2));
+    }
+    return d;
+}
+
+// Goodman-Kruskal γ: (C − D) / (C + D), ignoring all tied pairs.
+// Ranges from -1 to 1; tied pairs (on either variable) are excluded entirely.
+export function goodmanKruskalGamma(xs, ys) {
+    const n = xs.length;
+    if (n < 2)
+        return null;
+    let C = 0, D = 0;
+    for (let i = 0; i < n - 1; i++) {
+        for (let j = i + 1; j < n; j++) {
+            const dx = xs[i] - xs[j], dy = ys[i] - ys[j];
+            if (dx === 0 || dy === 0)
+                continue;
+            if (Math.sign(dx) === Math.sign(dy))
+                C++;
+            else
+                D++;
+        }
+    }
+    return (C + D) === 0 ? 0 : (C - D) / (C + D);
+}
+
+// Kendall's τ-b. O(n²) — fine for n ≤ a few hundred.
+export function kendallTauB(xs, ys) {
+    const n = xs.length;
+    if (n < 2)
+        return null;
+    let C = 0, D = 0, Tx = 0, Ty = 0;
+    for (let i = 0; i < n - 1; i++) {
+        for (let j = i + 1; j < n; j++) {
+            const dx = xs[i] - xs[j], dy = ys[i] - ys[j];
+            if (dx === 0 && dy === 0) { /* tied on both — skip */ }
+            else if (dx === 0)
+                Tx++;
+            else if (dy === 0)
+                Ty++;
+            else if (Math.sign(dx) === Math.sign(dy))
+                C++;
+            else
+                D++;
+        }
+    }
+    const denom = Math.sqrt((C + D + Tx) * (C + D + Ty));
+    return denom === 0 ? 0 : (C - D) / denom;
+}
+
+export function spearmanCorrelation(xs, ys) {
+    const n = xs.length;
+    if (n < 2)
+        return null;
+    const rank = arr => {
+        const sorted = arr.map((v, i) => ({v, i})).sort((a, b) => a.v - b.v);
+        const ranks = new Array(n);
+        for (let i = 0; i < n; ) {
+            let j = i;
+            while (j < n && sorted[j].v === sorted[i].v) j++;
+            const avg = (i + j - 1) / 2 + 1; // average rank (1-based)
+            for (let k = i; k < j; k++) ranks[sorted[k].i] = avg;
+            i = j;
+        }
+        return ranks;
+    };
+    const rx = rank(xs), ry = rank(ys);
+    const mx = (n + 1) / 2, my = (n + 1) / 2;
+    let num = 0, dx2 = 0, dy2 = 0;
+    for (let i = 0; i < n; i++) {
+        num  += (rx[i] - mx) * (ry[i] - my);
+        dx2  += (rx[i] - mx) ** 2;
+        dy2  += (ry[i] - my) ** 2;
+    }
+    return (dx2 === 0 || dy2 === 0) ? 0 : num / Math.sqrt(dx2 * dy2);
+}
+
 export function shuffleInPlace(arr, rng) {
     for (let i = arr.length - 1; i > 0; i--) {
         const j = Math.floor(rng() * (i + 1));
         [arr[i], arr[j]] = [arr[j], arr[i]];
     }
+}
+
+export function quantileSorted(sorted, p) {
+    const n = sorted.length;
+    if (n === 0)
+        return NaN;
+    const idx = (n - 1) * p;
+    const lo = Math.floor(idx);
+    const hi = Math.ceil(idx);
+    const h = idx - lo;
+    return (1 - h) * sorted[lo] + h * sorted[hi];
+}
+
+// values must be pre-sorted ascending (guaranteed by finalizePanel in data.js).
+export function boxStats(values) {
+    const q1 = quantileSorted(values, 0.25);
+    const med = quantileSorted(values, 0.50);
+    const q3 = quantileSorted(values, 0.75);
+    const iqr = q3 - q1;
+    const loFence = q1 - 1.5 * iqr;
+    const hiFence = q3 + 1.5 * iqr;
+
+    let loWhisker = values[0], hiWhisker = values[values.length - 1];
+    for (let i = 0; i < values.length; i++) {
+        if (values[i] >= loFence) {
+            loWhisker = values[i];
+            break;
+        }
+    }
+    for (let i = values.length - 1; i >= 0; i--) {
+        if (values[i] <= hiFence) {
+            hiWhisker = values[i];
+            break;
+        }
+    }
+
+    return {q1, med, q3, loWhisker, hiWhisker};
 }

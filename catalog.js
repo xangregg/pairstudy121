@@ -12,13 +12,14 @@ export function buildCatalog(currentOrientation, currentSession) {
     function heightWord()     { return currentOrientation() === "vertical" ? "height"     : "width";      }
 
     function jitterDesc(jitter) {
-        if (jitter === "wilkinson")
-            return "Dots at similar values are aligned and stacked in a symmetric pattern.";
-        if (jitter === "beeswarm")
-            return "Dots spread to each side in a balanced pattern to minimize overlap.";
-        if (jitter === "density random")
-            return "Dots spread more widely where values are densely packed.";
-        return "Dots at similar values are spread apart to reduce overlap."; // "random"
+        return "Dots are spread to reduce overlap, sometimes randomly, sometimes aligned and stacked.";
+        // if (jitter === "wilkinson")
+        //     return "Dots at similar values are aligned and stacked in a symmetric pattern.";
+        // if (jitter === "beeswarm")
+        //     return "Dots spread to each side in a balanced pattern to minimize overlap.";
+        // if (jitter === "density random")
+        //     return "Dots spread more widely where values are densely packed.";
+        // return "Dots at similar values are spread apart to reduce overlap."; // "random"
     }
 
     return [
@@ -30,7 +31,7 @@ export function buildCatalog(currentOrientation, currentSession) {
                     explanation: () => `A box plot shows the middle 50% of values as a rectangle, with a ${horizontalWord()} line at the median.` +
                         ` Thin ${verticalWord()} lines (whiskers) extend to values within 1.5 times the box ${heightWord()}` +
                         `; more extreme values (outliers) appear as individual dots.`,
-                    showDots: false
+                    showDots: false, plain: true
                 },
                 {
                     titleText: "Box plot",
@@ -45,7 +46,7 @@ export function buildCatalog(currentOrientation, currentSession) {
                     description: "Range bar: median, quartiles, and data range lines",
                     explanation: () => `A range bar shows the middle 50% of values as a rectangle, with a thick ${horizontalWord()} line at the median.` +
                         ` Thin ${verticalWord()} lines extend to cover the range of data values.`,
-                    whiskers: "range", widerMedian: true, showDots: false
+                    whiskers: "range", widerMedian: true, showDots: false, solo: true
                 },
             ]
         },
@@ -57,7 +58,7 @@ export function buildCatalog(currentOrientation, currentSession) {
                     explanation: () => `Nested bands show where the data falls: the darkest inner band contains the middle 66% of values, ` +
                         `the next contains 90%, and the outer band contains 99%. A ${horizontalWord()} line marks the median. ` +
                         `Any values beyond the outer 99% region are not shown.`,
-                    bandType: "quantile", cutoffs: [0.66, 0.90, 0.99], showMedian: true, showMode: false, showDots: false
+                    bandType: "quantile", cutoffs: [0.66, 0.90, 0.99], showMedian: true, showMode: false, showDots: false, solo: true
                 },
                 {
                     titleText: "Density bands",
@@ -67,7 +68,7 @@ export function buildCatalog(currentOrientation, currentSession) {
                         `the next shade contains 90%, and the lightest shade contains 99%. ` +
                         `Shaded regions may be disconnected. A ${horizontalWord()} line marks the point of highest density. ` +
                         `Any values outside of those regions are shown as dots.`,
-                    bandType: "hdr", cutoffs: [0.50, 0.90, 0.99], showMedian: false, showMode: true
+                    bandType: "hdr", cutoffs: [0.50, 0.90, 0.99], showMedian: false, showMode: true, solo: true
                 },
                 {
                     titleText: "Density bands",
@@ -77,7 +78,7 @@ export function buildCatalog(currentOrientation, currentSession) {
                         `the next shade contains 50%, and the lightest shade contains 90%. ` +
                         `Shaded regions may be disconnected. ` +
                         `Any values outside of those regions are shown as dots.`,
-                    bandType: "hdr", cutoffs: [0.05, 0.50, 0.90], showMedian: false, showMode: false
+                    bandType: "hdr", cutoffs: [0.05, 0.50, 0.90], showMedian: false, showMode: false, solo: true
                 },
                 {
                     titleText: "Density bands",
@@ -86,7 +87,7 @@ export function buildCatalog(currentOrientation, currentSession) {
                         `The darkest shade contains the densest 33% of values; ` +
                         `the next shade contains 67%, and the lightest shade contains all remaining values. ` +
                         `Shaded regions may be disconnected.`,
-                    bandType: "hdr", cutoffs: [1. / 3, 2. / 3, 1.00], showMedian: false, showMode: false
+                    bandType: "hdr", cutoffs: [1. / 3, 2. / 3, 1.00], showMedian: false, showMode: false, solo: true
                 },
             ]
         },
@@ -94,18 +95,18 @@ export function buildCatalog(currentOrientation, currentSession) {
             type: "dot", variants: [
                 {
                     titleText: "Dot plot",
+                    description: "Dot plot",
+                    explanation: () => `Each dot represents one data value. ` +
+                        `${jitterDesc(currentSession().design.jitter)}`,
+                    showMedian: false, plain: true
+                },
+                {
+                    titleText: "Dot plot",
                     description: "Dot plot with median",
                     explanation: () => `Each dot represents one data value. ` +
                         `${jitterDesc(currentSession().design.jitter)} ` +
                         `A ${horizontalWord()} line marks the median.`,
                     showMedian: true
-                },
-                {
-                    titleText: "Dot plot",
-                    description: "Dot plot",
-                    explanation: () => `Each dot represents one data value. ` +
-                        `${jitterDesc(currentSession().design.jitter)}`,
-                    showMedian: false
                 },
             ]
         },
@@ -116,7 +117,7 @@ export function buildCatalog(currentOrientation, currentSession) {
                     description: "Violin plot: smoothed distribution",
                     explanation: () => `A violin plot traces the full distribution shape as a smooth symmetric outline. ` +
                         `Wider sections indicate where values are more common.`,
-                    showDots: false, showMedian: false
+                    showDots: false, showMedian: false, plain: true
                 },
                 {
                     titleText: "Violin plot",

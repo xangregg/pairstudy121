@@ -1,6 +1,7 @@
 // app.js
 
-import {renderChart, quantileSorted} from "./renderers.js";
+import {renderChart} from "./renderers.js";
+import {quantileSorted, ksStat, interpolate, spearmanCorrelation, kendallTauB, goodmanKruskalGamma} from "./utils.js";
 import {mulberry32, hashStringToUint32, randomNormal, normalToSkewNormal} from "./utils.js";
 import {N_PER_GROUP, STORAGE_KEY, RATING_DELAY_MS, DIST_REPS, DIST_REPS_TESTING} from "./config.js";
 import {buildCatalog} from "./catalog.js";
@@ -20,19 +21,21 @@ const SKEWPREVIEW = params.has("skewpreview");
 const NOSUBMIT = params.has("nosubmit") || !!SEEDREVIEW_DIST || SKEWPREVIEW;
 
 // Prolific appends these in uppercase; accept either case for local testing.
-const PROLIFIC_PID        = params.get("PROLIFIC_PID")  ?? params.get("prolific_pid");
-const PROLIFIC_STUDY_ID   = params.get("STUDY_ID")      ?? params.get("study_id");
-const PROLIFIC_SESSION_ID = params.get("SESSION_ID")    ?? params.get("session_id");
+const PROLIFIC_PID = params.get("PROLIFIC_PID") ?? params.get("prolific_pid");
+const PROLIFIC_STUDY_ID = params.get("STUDY_ID") ?? params.get("study_id");
+const PROLIFIC_SESSION_ID = params.get("SESSION_ID") ?? params.get("session_id");
 // Completion code is base64-encoded in the survey URL (?cc=...) so it isn't immediately
 // readable to participants. Encode once with btoa("YOUR_CODE") when setting up the study URL.
 const COMPLETION_CODE = (() => {
     const raw = params.get("pg");
-    if (!raw) return null;
-    try { return atob(raw); } catch { return raw; }
+    if (!raw)
+        return null;
+    try { return atob(raw); }
+    catch { return raw; }
 })();
 
 const N_CHART_TYPES = TESTING ? Infinity : 4;
-const N_VARIANT_TYPES = TESTING ? Infinity : 1;
+const N_VARIANT_TYPES = Infinity; // solo field in catalog limits variants where needed
 const distReps = TESTING ? DIST_REPS_TESTING : DIST_REPS;
 
 /** ---------- Session storage ---------- **/
@@ -75,7 +78,7 @@ const UI = {
     onboardingCanvas: document.getElementById("onboardingCanvas"),
     onboardingThumbnails: document.getElementById("onboardingThumbnails"),
     onboardingChartLabel: document.getElementById("onboardingChartLabel"),
-    onboardingBackBtn:     document.getElementById("onboardingBackBtn"),
+    onboardingBackBtn: document.getElementById("onboardingBackBtn"),
     onboardingContinueBtn: document.getElementById("onboardingContinueBtn"),
     trialPage: document.getElementById("trialPage"),
     introStartBtn: document.getElementById("introStartBtn"),
@@ -122,9 +125,18 @@ function groupStats(panel) {
         const n = sorted.length;
         const mean = sorted.reduce((s, v) => s + v, 0) / n;
         const sd = Math.sqrt(sorted.reduce((s, v) => s + (v - mean) ** 2, 0) / n);
-        return { mean, sd, min: sorted[0], q1: quantileSorted(sorted, 0.25), med: quantileSorted(sorted, 0.50), q3: quantileSorted(sorted, 0.75), max: sorted[n - 1] };
+        return {
+            mean,
+            sd,
+            min: sorted[0],
+            q1: quantileSorted(sorted, 0.25),
+            med: quantileSorted(sorted, 0.50),
+            q3: quantileSorted(sorted, 0.75),
+            max: sorted[n - 1]
+        };
     }
-    return { a: stats(panel.groups[0]), b: stats(panel.groups[1]) };
+
+    return {a: stats(panel.groups[0]), b: stats(panel.groups[1])};
 }
 
 
@@ -159,27 +171,47 @@ function buildTrial(trialIdx, cond) {
 
 /** ---------- View switching ---------- **/
 const PAGES = () => [UI.introPage, UI.onboardingPage, UI.trialPage, UI.completionPage];
-function showPage(page) { for (const p of PAGES()) p.style.display = p === page ? "block" : "none"; }
+
+function showPage(page) {
+    for (const p of PAGES()) p.style.display = p === page ? "block" : "none";
+}
 
 function showIntro() {
     showPage(UI.introPage);
     document.getElementById("introTrialCount").textContent = session.design.conditions.length;
 }
-function showOnboarding() { showPage(UI.onboardingPage); renderOnboardingStep(); }
-function showTrial()      { showPage(UI.trialPage); }
-function showCompletion() { showPage(UI.completionPage); }
+
+function showOnboarding() {
+    showPage(UI.onboardingPage);
+    renderOnboardingStep();
+}
+
+function showTrial() {
+    showPage(UI.trialPage);
+}
+
+function showCompletion() {
+    showPage(UI.completionPage);
+}
 
 /** ---------- Onboarding ---------- **/
 function getOnboardingSteps() {
-    const n = session.design.selectedChartTypes.length;
-    // Sort chart-type training pages to match the order the participant will first encounter each type.
-    const firstOccurrence = new Array(n).fill(Infinity);
+    // One training page per unique chart type, using the first variant of that type.
+    // Sort by first trial appearance so training order matches study order.
+    const typeToFirstIdx = new Map();
+    for (let i = 0; i < session.design.selectedChartTypes.length; i++) {
+        const type = session.design.selectedChartTypes[i].type;
+        if (!typeToFirstIdx.has(type))
+            typeToFirstIdx.set(type, i);
+    }
+    const typeFirstTrial = new Map([...typeToFirstIdx.keys()].map(t => [t, Infinity]));
     session.design.conditions.forEach((cond, trialIdx) => {
-        const i = session.design.selectedChartTypes.findIndex(ct => ct.type === cond.chartType);
-        if (i >= 0 && trialIdx < firstOccurrence[i]) firstOccurrence[i] = trialIdx;
+        if (trialIdx < typeFirstTrial.get(cond.chartType))
+            typeFirstTrial.set(cond.chartType, trialIdx);
     });
-    const sortedIndices = Array.from({length: n}, (_, i) => i)
-        .sort((a, b) => firstOccurrence[a] - firstOccurrence[b]);
+    const sortedTypes = [...typeToFirstIdx.keys()]
+        .sort((a, b) => typeFirstTrial.get(a) - typeFirstTrial.get(b));
+
     const steps = [];
     if (!session.skipIntro) {
         steps.push({type: "background"});
@@ -187,7 +219,7 @@ function getOnboardingSteps() {
     }
     steps.push(
         {type: "chartTypeIntro"},
-        ...sortedIndices.map(i => ({type: "chartType", index: i})),
+        ...sortedTypes.map(chartType => ({type: "chartType", index: typeToFirstIdx.get(chartType)})),
         {type: "responseScale"},
     );
     return steps;
@@ -223,8 +255,8 @@ function getOnboardingPanels() {
         [...src1.map(() => 0), ...s2a.map(() => 1), ...s2b.map(() => 2), ...s2c.map(() => 3)]
     );
     const panel3 = finalizePanel(
-        [...src3a, ...s3a, ...src3b, ...s3b],
-        [...src3a.map(() => 0), ...s3a.map(() => 1), ...src3b.map(() => 2), ...s3b.map(() => 3)]
+        [...src3a, ...src3b, ...s3a, ...s3b],
+        [...src3a.map(() => 0), ...src3b.map(() => 1), ...s3a.map(() => 2), ...s3b.map(() => 3)]
     );
     _onboardingPanels = {panel1, panel2, panel3};
     return _onboardingPanels;
@@ -243,7 +275,7 @@ function buildChartTypeExamplePanel(chartType) {
     return finalizePanel(y, group);
 }
 
-const WIDTH_2_UP = 350;
+const WIDTH_2_UP = 450;
 const HEIGHT_2_UP = 500;
 const WIDTH_4_UP_TRAINING = 500;  // 4-panel sampling canvas (wider than the standard 2-up)
 const HEIGHT_4_UP_TRAINING = 500; // same height as the standard 2-up
@@ -295,13 +327,26 @@ function renderChartTypeCanvas(ct) {
     const span = (mx - mn) || 1;
     renderChart(c.getContext("2d"), c, ct.type, panel,
         mn - span * 0.12, mx + span * 0.12,
-        {violinScale: 7, ...ct.options}, currentOrientation(), session.design.jitter);
+        {violinScale: 7, ...getPlainCatalogOptions(ct.type)}, currentOrientation(), session.design.jitter);
 }
 
 // Look up the live catalog variant so explanation functions survive localStorage round-trips.
 function getLiveCatalogOptions(ct) {
     const entry = CHART_TYPE_CATALOG.find(e => e.type === ct.type);
     return entry?.variants.find(v => v.description === ct.options.description) ?? ct.options;
+}
+
+// Return the plain variant for a chart type (the one marked plain:true, or the first non-solo variant).
+// Used for training pages and thumbnails so the display doesn't depend on which variants were assigned.
+function getPlainCatalogOptions(chartType) {
+    const entry = CHART_TYPE_CATALOG.find(e => e.type === chartType);
+    if (!entry)
+        return {};
+    const plain = entry.variants.find(v => v.plain);
+    if (plain)
+        return plain;
+    const nonSolo = entry.variants.find(v => !v.solo);
+    return nonSolo ?? entry.variants[0];
 }
 
 function renderOnboardingStep() {
@@ -319,15 +364,15 @@ function renderOnboardingStep() {
     // Reserve fixed heights within each section so the canvas and Continue button
     // stay at the same vertical position across pages within a section.
     const isChartTypeSection = step.type === "chartTypeIntro" || step.type === "chartType";
-    const isSamplingSection  = step.type === "sampling1" || step.type === "sampling2" || step.type === "sampling3";
+    const isSamplingSection = step.type === "sampling1" || step.type === "sampling2" || step.type === "sampling3";
     const horiz = currentOrientation() === "horizontal";
     UI.onboardingText.style.minHeight = isChartTypeSection ? "150px" : isSamplingSection ? "150px" : "";
-    const naturalCanvasH = isChartTypeSection ? (horiz ? WIDTH_2_UP : HEIGHT_2_UP)
+    const naturalCanvasH = isChartTypeSection ? (horiz ? WIDTH_2_UP : HEIGHT_2_UP) - (step.type === "chartTypeIntro" ? 10 : 0)
         : isSamplingSection ? (horiz ? WIDTH_4_UP_TRAINING : HEIGHT_4_UP_TRAINING) : 0;
     UI.onboardingCanvasArea.style.minHeight = naturalCanvasH
         ? Math.min(naturalCanvasH, onboardingCanvasMaxHeight()) + "px" : "";
-    UI.onboardingCanvasArea.style.display        = step.type === "chartTypeIntro" ? "flex" : "";
-    UI.onboardingCanvasArea.style.flexDirection  = step.type === "chartTypeIntro" ? "column" : "";
+    UI.onboardingCanvasArea.style.display = step.type === "chartTypeIntro" ? "flex" : "";
+    UI.onboardingCanvasArea.style.flexDirection = step.type === "chartTypeIntro" ? "column" : "";
     UI.onboardingCanvasArea.style.justifyContent = step.type === "chartTypeIntro" ? "center" : "";
 
     if (step.type === "sampling1") {
@@ -358,29 +403,28 @@ function renderOnboardingStep() {
             Source 2 has a slightly offset central location and less spread.
             Notice how samples A and B also look different from each other.</p>`;
         const {panel3} = getOnboardingPanels();
-        renderSamplingCanvas(panel3, ["Source 1", "A", "Source 2", "B"]);
+        renderSamplingCanvas(panel3, ["Source 1", "Source 2", "A", "B"]);
 
     }
     else if (step.type === "chartTypeIntro") {
-        const n = session.design.selectedChartTypes.length;
+        const n = new Set(session.design.selectedChartTypes.map(ct => ct.type)).size;
         UI.onboardingTitle.textContent = "Chart Types";
         UI.onboardingText.innerHTML =
-            `<p>Over the course of the study you'll see <strong>${n} chart ${n === 1 ? "type" : "types"}</strong>,
+            `<p>Over the course of the study you'll see <strong>${n} main chart ${n === 1 ? "type" : "types"}</strong>,
             briefly explained on the following pages.
-            It's not important to remember every detail —
-            each page will include a short reminder above the chart.</p>
-            <p>Your task is always the same: judge whether two charts appear to come from different sources.</p>`;
+            Some charts will show a combination of elements from different chart types, such as overlaid dots.
+            </p><p>Each page will include a short summary of the chart details above the trial pair.</p>`;
         UI.onboardingThumbnails.style.display = "flex";
         renderChartTypeThumbs(UI.onboardingThumbnails.querySelectorAll(".onboardingThumb"));
     }
     else if (step.type === "chartType") {
         const ct = session.design.selectedChartTypes[step.index];
-        const opts = getLiveCatalogOptions(ct);
+        const opts = getPlainCatalogOptions(ct.type);
         UI.onboardingTitle.textContent = `How to read: ${opts.titleText ?? opts.description}`;
         const expl = typeof opts.explanation === "function" ? opts.explanation() : (opts.explanation ?? "");
         UI.onboardingText.innerHTML =
             `<p>${expl}</p>
-            <p>Below is an example pair where both samples come from the same source.</p>`;
+            <p>Below is one example pair where both samples come from the same source.</p>`;
         renderChartTypeCanvas(ct);
         UI.onboardingChartLabel.textContent = opts.description;
     }
@@ -435,10 +479,12 @@ function advanceOnboarding() {
 
 /** ---------- Rendering ---------- **/
 function currentOrientation() {
-    if (window.innerWidth <= 480) return "vertical";
+    if (window.innerWidth <= 480)
+        return "vertical";
     const o = params.get("orientation");
     return (o === "horizontal" || o === "vertical") ? o : session.design.orientation;
 }
+
 CHART_TYPE_CATALOG = buildCatalog(currentOrientation, () => session);
 
 function renderTrial(trial) {
@@ -448,7 +494,7 @@ function renderTrial(trial) {
     UI.chart.height = horiz ? WIDTH_2_UP : HEIGHT_2_UP;
     UI.chart.style.maxWidth = UI.chart.width + "px";
     const ctx = UI.chart.getContext("2d");
-    renderChart(ctx, UI.chart, trial.condition.chartType, trial.panel, trial.yMin, trial.yMax, trial.condition.chartOptions, orientation, session.design.jitter);
+    renderChart(ctx, UI.chart, trial.condition.chartType, trial.panel, trial.yMin, trial.yMax, trial.condition.chartOptions, orientation, trial.condition.jitter);
 
     UI.debug.textContent = JSON.stringify({
         trialIdx: trial.trialIdx,
@@ -475,7 +521,14 @@ function ensureDesign() {
     if (session.design)
         return;
     const rng = mulberry32((session.participantSeed ^ 0xA5A5A5A5) >>> 0);
-    session.design = makeDesign({rng, catalog: CHART_TYPE_CATALOG, nChartTypes: N_CHART_TYPES, nVariantTypes: N_VARIANT_TYPES, distReps, dataSeeds: DATA_SEEDS});
+    session.design = makeDesign({
+        rng,
+        catalog: CHART_TYPE_CATALOG,
+        nChartTypes: N_CHART_TYPES,
+        nVariantTypes: N_VARIANT_TYPES,
+        distReps,
+        dataSeeds: DATA_SEEDS
+    });
     const orientOverride = params.get("orientation");
     if (orientOverride === "horizontal" || orientOverride === "vertical")
         session.design.orientation = orientOverride;
@@ -485,19 +538,23 @@ function ensureDesign() {
 function renderChartTypeThumbs(thumbs) {
     const steps = getOnboardingSteps();
     const chartSteps = steps.filter(s => s.type === "chartType");
-    const thumbW = 140, thumbH = 200;
+    const thumbW = 140;
+    const thumbH = 300;
     chartSteps.forEach((step, i) => {
-        if (i >= thumbs.length) return;
+        if (i >= thumbs.length)
+            return;
         const c = thumbs[i];
-        c.width  = thumbW * 2;   // 2× for crisp rendering
+        c.width = thumbW * 2;   // 2× for crisp rendering
         c.height = thumbH * 2;
         const ct = session.design.selectedChartTypes[step.index];
-        const opts = getLiveCatalogOptions(ct);
+        const opts = getPlainCatalogOptions(ct.type);
         const panel = buildChartTypeExamplePanel(ct.type);
         let mn = Infinity, mx = -Infinity;
         for (const g of panel.groups) {
-            if (g[0] < mn) mn = g[0];
-            if (g[g.length - 1] > mx) mx = g[g.length - 1];
+            if (g[0] < mn)
+                mn = g[0];
+            if (g[g.length - 1] > mx)
+                mx = g[g.length - 1];
         }
         const span = (mx - mn) || 1;
         const ctx = c.getContext("2d");
@@ -505,7 +562,7 @@ function renderChartTypeThumbs(thumbs) {
         ctx.fillRect(0, 0, c.width, c.height);
         renderChart(ctx, c, ct.type, panel,
             mn - span * 0.12, mx + span * 0.12,
-            { violinScale: 7, ...opts }, "vertical", session.design.jitter);
+            {forThumbnail: true, violinScale: 7, ...opts}, "vertical", "density random");
     });
 }
 
@@ -560,27 +617,61 @@ function nextTrial() {
     UI.finishedMsg.textContent = "";
 }
 
+// K-S thresholds (N=50 per group) mapping realized D to expected rating 1–4.
+//  for N=50 per group, the K-S critical values (p=0.05 ≈ 0.27, p=0.01 ≈ 0.32) give rough anchors.
+const KS_THRESHOLDS = [0.15, 0.24, 0.32]; // boundaries between ratings 1/2, 2/3, 3/4
+
+// Integer bucket (1–4) for table grouping.
+function ksToExpectedRating(ks) {
+    if (ks < KS_THRESHOLDS[0])
+        return 1;
+    if (ks < KS_THRESHOLDS[1])
+        return 2;
+    if (ks < KS_THRESHOLDS[2])
+        return 3;
+    return 4;
+}
+
+// Piecewise-linear interpolation of ks → continuous expected rating.
+// Anchors extend below 1 and above 4 to allow overage at the endpoints,
+// so extreme KS values don't produce artificially large penalties.
+function ksInterpolated(ks) {
+    const anchors = [0, 0.05, ...KS_THRESHOLDS, 0.44, 1.0];
+    const ratings = [0.5, 1, 1.5, 2.5, 3.5, 4.4, 4.5]; // allow overage
+    return interpolate(ks, anchors, ratings);
+}
+
 function computeRatingStats() {
-    const buckets = {null: [], weak: [], moderate: [], strong: []};
-    const EXPECTED = {null: 1, weak: 2, moderate: 3, strong: 4};
-    const POINTS    = [1, 0.9, 0.2, 0]; // indexed by distance 0,1,2,3
-    let totalPoints = 0, totalTrials = 0;
+    const buckets = {1: [], 2: [], 3: [], 4: []};
+    let totalSqErr = 0;
+    const ksValues = [], ratings = [];
+    const grace = 0.25; // no penalty within this much
 
     for (const r of session.results) {
-        const level = r.condition.signal.level;
-        if (level in buckets) {
-            buckets[level].push(r.rating);
-            const dist = Math.abs(r.rating - EXPECTED[level]);
-            totalPoints += POINTS[Math.min(dist, 3)];
-            totalTrials++;
+        if (r.ks == null)
+            continue;
+        buckets[ksToExpectedRating(r.ks)].push(r.rating);
+        let ksInterpolatedRating = ksInterpolated(r.ks);
+        if ((r.rating === 4 && ksInterpolatedRating >= 4) || (r.rating === 1 && ksInterpolatedRating <= 1))
+            ;   // no error -- can't get any closer
+        else {
+            const rDiff = Math.max(0, Math.abs(r.rating - ksInterpolatedRating) - grace);
+            totalSqErr += rDiff ** 2;
         }
+        ksValues.push(r.ks);
+        ratings.push(r.rating);
     }
+    const n = ksValues.length;
     const avg = arr => arr.length === 0 ? null : arr.reduce((a, b) => a + b, 0) / arr.length;
-    const byLevel = Object.fromEntries(
+    const byBucket = Object.fromEntries(
         Object.entries(buckets).map(([k, arr]) => [k, {mean: avg(arr), n: arr.length}])
     );
-    byLevel.alignmentScore = totalTrials > 0 ? totalPoints / totalTrials : null;
-    return byLevel;
+    // Score: 1 − MSE/9, where 9 = max possible squared error (1−4)²
+    byBucket.alignmentScore = n > 0 ? Math.max(0, 1 - (totalSqErr / n) / ((3 - grace) ** 2)) : null;
+    byBucket.spearman = spearmanCorrelation(ksValues, ratings);
+    byBucket.kendall = kendallTauB(ksValues, ratings);
+    byBucket.gamma   = goodmanKruskalGamma(ksValues, ratings);
+    return byBucket;
 }
 
 function finishStudy() {
@@ -591,13 +682,13 @@ function finishStudy() {
     showCompletion();
     const statsEl = document.getElementById("ratingStats");
     const [s1, s2, s3, s4] = RATING_SCALE;
-    const LEVELS = [
-        {key: "null",     label: s1.shortLabel},
-        {key: "weak",     label: s2.shortLabel},
-        {key: "moderate", label: s3.shortLabel},
-        {key: "strong",   label: s4.shortLabel},
+    const BUCKETS = [
+        {key: "1", label: s1.shortLabel},
+        {key: "2", label: s2.shortLabel},
+        {key: "3", label: s3.shortLabel},
+        {key: "4", label: s4.shortLabel},
     ];
-    const rows = LEVELS.map(({key, label}) => {
+    const rows = BUCKETS.map(({key, label}) => {
         const s = ratingStats[key];
         const avg = s.n > 0 ? s.mean.toFixed(1) : "--";
         return `<tr><td>${label}</td><td>${avg}</td><td>${s.n}</td></tr>`;
@@ -605,13 +696,17 @@ function finishStudy() {
     const scorePct = ratingStats.alignmentScore !== null
         ? Math.round(ratingStats.alignmentScore * 100) + "%"
         : "--";
+    const spearman = ratingStats.spearman !== null ? ratingStats.spearman.toFixed(2) : "--";
+    const kendall  = ratingStats.kendall  !== null ? ratingStats.kendall.toFixed(2)  : "--";
+    const gamma    = ratingStats.gamma    !== null ? ratingStats.gamma.toFixed(2)    : "--";
     statsEl.innerHTML =
         `<p>The study aims to evaluate the charts, not the participants, but if you're curious, here are your average responses on a 1–4 scale.</p>` +
         `<table class="rating-stats-table">` +
-        `<thead><tr><th>Expected Surprise</th><th>Your surprise</th><th>Count</th></tr></thead>` +
+        `<thead><tr><th>Expected</th><th>Your average</th><th>Count</th></tr></thead>` +
         `<tbody>${rows}</tbody>` +
         `</table>` +
-        `<p style="margin-top:12px;">Overall alignment score: <strong>${scorePct}</strong></p>`;
+        `<p style="margin-top:12px;">Alignment score: <strong>${scorePct}</strong> &nbsp;|&nbsp; ` +
+        `Spearman: <strong>${spearman}</strong> &nbsp;|&nbsp; τ-b: <strong>${kendall}</strong> &nbsp;|&nbsp; γ: <strong>${gamma}</strong></p>`;
     statsEl.style.display = "block";
     if (PROLIFIC_PID && COMPLETION_CODE) {
         document.getElementById("completionCodeText").textContent = COMPLETION_CODE;
@@ -637,6 +732,7 @@ function recordResponse(rating) {
     const isLast = currentTrial.trialIdx + 1 >= session.design.conditions.length;
     const finishedAt = isLast ? new Date().toISOString() : null;
     const stats = groupStats(currentTrial.panel);
+    const ks = ksStat(currentTrial.panel.groups[0], currentTrial.panel.groups[1]);
     // participantId/Seed and startedAtISO are session-level; not duplicated here.
     session.results.push({
         trialIdx: currentTrial.trialIdx,
@@ -644,6 +740,7 @@ function recordResponse(rating) {
         condition: currentTrial.condition,
         rating,   // 1..4
         rtMs,
+        ks,
         viewport: {w: window.innerWidth, h: window.innerHeight},
         groupStats: stats
     });
@@ -704,7 +801,7 @@ function downloadDesign() {
     session.design.conditions.forEach((c, i) => {
         const e = c.signal;
         rows.push([
-            session.participantId, i, session.design.orientation, session.design.jitter, c.chartType, JSON.stringify(c.chartOptions ?? {}), c.dist, e.type,
+            session.participantId, i, session.design.orientation, c.jitter, c.chartType, JSON.stringify(c.chartOptions ?? {}), c.dist, e.type,
             e.delta_sd ?? "", e.ratio ?? "", e.spread_factor ?? "",
             e.alpha ?? "", e.separation ?? "", e.n ?? "", e.p ?? "",
             e.nHigh ?? "", e.nLow ?? "", e.magnitude ?? "", c.dataSeed
@@ -817,8 +914,8 @@ function renderSkewPreview() {
     document.body.appendChild(title);
 
     for (const alpha of ALPHAS) {
-        const delta  = alpha / Math.sqrt(1 + alpha * alpha);
-        const sigma  = Math.sqrt(1 - 2 * delta * delta / Math.PI);
+        const delta = alpha / Math.sqrt(1 + alpha * alpha);
+        const sigma = Math.sqrt(1 - 2 * delta * delta / Math.PI);
         const median = normalToSkewNormal(0, alpha);
 
         // Generate skewed group B, median-centered and spread-normalized.
@@ -860,7 +957,10 @@ function renderSkewPreview() {
             c.width = WIDTH_2_UP;
             c.height = HEIGHT_2_UP;
             c.style.cssText = "width:200px; height:auto; border:1px solid var(--border); border-radius:6px; background:#fff;";
-            renderChart(c.getContext("2d"), c, chartType, panel, yMin - pad, yMax + pad, {showDots:false, maxHalfW:500}, "vertical", "wilkinson");
+            renderChart(c.getContext("2d"), c, chartType, panel, yMin - pad, yMax + pad, {
+                showDots: false,
+                maxHalfW: 500
+            }, "vertical", "wilkinson");
             wrap.appendChild(c);
 
             row.appendChild(wrap);

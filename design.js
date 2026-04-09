@@ -1,7 +1,7 @@
 // design.js — study design construction and signal application
 
 import {shuffleInPlace, normalToSkewNormal} from "./utils.js";
-import {JITTER_CATALOG} from "./config.js";
+import {JITTER_CATALOG, MIN_CATEGORY_TRIALS, MAX_VARIANT_TRIALS} from "./config.js";
 
 // Build a pool of nTrials signals drawn with probability proportional to weight.
 // Signals with weight=0 are excluded. Counts are assigned via the largest-remainder
@@ -133,30 +133,44 @@ export function makeDesign({rng, catalog, nChartTypes, nVariantTypes, distReps, 
     for (const entry of catalogShuffled.slice(0, nChartTypes)) {
         const variantsShuffled = entry.variants.slice();
         shuffleInPlace(variantsShuffled, rng);
-        for (const options of variantsShuffled.slice(0, nVariantTypes)) {
-            selectedChartTypes.push({type: entry.type, options});
+        // Collect variants: a solo variant appears alone; non-solo variants are collected
+        // together up to nVariantTypes. A solo variant encountered after collecting non-solo
+        // variants is skipped (and vice versa).
+        const selected = [];
+        for (const options of variantsShuffled) {
+            if (options.solo) {
+                if (selected.length === 0)
+                    selected.push(options);
+                break;
+            }
+            selected.push(options);
+            if (selected.length >= nVariantTypes)
+                break;
         }
+        for (const options of selected)
+            selectedChartTypes.push({type: entry.type, options});
     }
 
     const distSignals = {
         normal: [
-            {type: "null",    level: "null",     weight: 10},
+            {type: "null",    level: "null",     weight: 8},
             {type: "location", delta_sd: 0.5, level: "weak",     weight: 5},
             {type: "location", delta_sd: 0.8, level: "moderate", weight: 10},
-            {type: "location", delta_sd: 1.1, level: "strong",   weight: 10},
+            {type: "location", delta_sd: 1.1, level: "strong",   weight: 8},
             {type: "location", delta_sd: 1.4, level: "strong",   weight: 0},
-            {type: "spread", spread_factor: 1.2, level: "weak",     weight: 0},
+            {type: "spread", spread_factor: 1.2, level: "weak",     weight: 3},
             {type: "spread", spread_factor: 1.5, level: "moderate", weight: 10},
-            {type: "spread", spread_factor: 1.8, level: "strong",   weight: 10},
-            {type: "skew", alpha:  7, level: "strong",   weight: 5},
-            {type: "skew", alpha:  5, level: "moderate", weight: 5},
-            {type: "skew", alpha:  3, level: "weak",     weight: 0},
-            {type: "skew", alpha: -3, level: "weak",     weight: 0},
-            {type: "skew", alpha: -5, level: "moderate", weight: 0},
+            {type: "spread", spread_factor: 1.8, level: "strong",   weight: 8},
+            {type: "skew", alpha:  7, level: "strong",   weight: 4},
+            {type: "skew", alpha:  5, level: "moderate", weight: 4},
+            {type: "skew", alpha:  3, level: "weak",     weight: 1},
+            {type: "skew", alpha: -3, level: "weak",     weight: 1},
+            {type: "skew", alpha: -5, level: "moderate", weight: 4},
+            {type: "skew", alpha: -7, level: "strong",   weight: 4},
             {type: "bimodal", separation: 5.0, level: "strong",   weight: 4},
-            {type: "bimodal", separation: 4.0, level: "strong",   weight: 8},
-            {type: "bimodal", separation: 3.0, level: "moderate", weight: 8},
-            {type: "bimodal", separation: 2.0, level: "weak",     weight: 0},
+            {type: "bimodal", separation: 4.0, level: "strong",   weight: 6},
+            {type: "bimodal", separation: 3.0, level: "moderate", weight: 6},
+            {type: "bimodal", separation: 2.0, level: "weak",     weight: 4},
             {type: "outlier", nHigh: 2, nLow: 0, magnitude: 4.0, level: "moderate", weight: 0},
             {type: "outlier", nHigh: 1, nLow: 0, magnitude: 4.0, level: "weak",     weight: 0},
             {type: "outlier", nHigh: 0, nLow: 1, magnitude: 4.0, level: "weak",     weight: 0},
@@ -182,13 +196,26 @@ export function makeDesign({rng, catalog, nChartTypes, nVariantTypes, distReps, 
         ],
     };
 
+    // Group selected variants by chart type category.
+    const typesSeen = new Set();
+    const chartTypeGroups = [];
+    for (const ct of selectedChartTypes) {
+        if (!typesSeen.has(ct.type)) {
+            typesSeen.add(ct.type);
+            chartTypeGroups.push({type: ct.type, variants: [ct.options]});
+        }
+        else {
+            chartTypeGroups.find(g => g.type === ct.type).variants.push(ct.options);
+        }
+    }
+
     const dists = Object.keys(distSignals);
     const conditions = [];
 
-    // Build per-distribution seed and signal pools, then assign one condition per slot.
+    // Build per-distribution seed and signal pools (sized by total trials per dist).
     const seedPools = {}, signalPools = {}, poolIdxs = {};
     for (const dist of dists) {
-        const nPerDist = distReps[dist] * selectedChartTypes.length;
+        const nPerDist = distReps[dist] * chartTypeGroups.length;
         const seeds = Array.from({length: nPerDist}, (_, i) => dataSeeds[i % dataSeeds.length]);
         shuffleInPlace(seeds, rng);
         seedPools[dist] = seeds;
@@ -197,12 +224,37 @@ export function makeDesign({rng, catalog, nChartTypes, nVariantTypes, distReps, 
     }
 
     for (const dist of dists) {
-        for (let r = 0; r < distReps[dist]; r++) {
-            for (const {type: chartType, options: chartOptions} of selectedChartTypes) {
+        const totalTrials = distReps[dist] * chartTypeGroups.length;
+        // Clamp minimum so it fits even in testing mode with few total trials.
+        const minPerCategory = Math.min(MIN_CATEGORY_TRIALS, Math.floor(totalTrials / chartTypeGroups.length));
+
+        // Assign guaranteed minimum trials to each category, balanced across its variants.
+        const variantCounts = new Array(selectedChartTypes.length).fill(0);
+        for (let ci = 0; ci < chartTypeGroups.length; ci++) {
+            const indices = selectedChartTypes.reduce((acc, ct, i) =>
+                ct.type === chartTypeGroups[ci].type ? [...acc, i] : acc, []);
+            for (let r = 0; r < minPerCategory; r++)
+                variantCounts[indices[r % indices.length]]++;
+        }
+
+        // Randomly assign remaining trials by sampling uniformly from eligible variants
+        // (those under MAX_VARIANT_TRIALS), giving multi-variant categories proportionally
+        // more appearances while keeping per-participant counts variable.
+        let remaining = totalTrials - variantCounts.reduce((a, b) => a + b, 0);
+        while (remaining > 0) {
+            const eligible = variantCounts.reduce((acc, c, i) =>
+                c < MAX_VARIANT_TRIALS ? [...acc, i] : acc, []);
+            if (eligible.length === 0) break;
+            variantCounts[eligible[Math.floor(rng() * eligible.length)]]++;
+            remaining--;
+        }
+
+        // Build conditions from variant counts.
+        for (let i = 0; i < selectedChartTypes.length; i++) {
+            const {type: chartType, options: chartOptions} = selectedChartTypes[i];
+            for (let r = 0; r < variantCounts[i]; r++) {
                 const idx = poolIdxs[dist]++;
-                const e = signalPools[dist][idx];
-                const dataSeed = seedPools[dist][idx];
-                conditions.push({chartType, chartOptions, dist, signal: e, dataSeed});
+                conditions.push({chartType, chartOptions, dist, signal: signalPools[dist][idx], dataSeed: seedPools[dist][idx]});
             }
         }
     }
@@ -212,8 +264,13 @@ export function makeDesign({rng, catalog, nChartTypes, nVariantTypes, distReps, 
     shuffleInPlace(signalGroups, rng);
     conditions.forEach((c, i) => c.signalGroup = signalGroups[i]);
 
+    // Assign jitter per condition, balanced across JITTER_CATALOG.
+    const jitterPool = Array.from({length: conditions.length}, (_, i) => JITTER_CATALOG[i % JITTER_CATALOG.length]);
+    shuffleInPlace(jitterPool, rng);
+    conditions.forEach((c, i) => c.jitter = jitterPool[i]);
+
     shuffleInPlace(conditions, rng);
-    const orientation = rng() < 0.5 ? "vertical" : "horizontal";
-    const jitter = JITTER_CATALOG[Math.floor(rng() * JITTER_CATALOG.length)];
+    const orientation = "vertical";
+    const jitter = JITTER_CATALOG[Math.floor(rng() * JITTER_CATALOG.length)]; // used for onboarding/training display only
     return {conditions, selectedChartTypes, orientation, jitter, distSignals, distReps, dataSeeds};
 }

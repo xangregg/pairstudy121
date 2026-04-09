@@ -53,7 +53,7 @@ export function postResponse(session, trial, rating, rtMs, finishedAt = null, pa
         chart_type:     cond.chartType,
         chart_variant:  JSON.stringify(cond.chartOptions ?? {}),
         orientation:    session.design.orientation,
-        jitter:         session.design.jitter,
+        jitter:         cond.jitter,
         distribution:   cond.dist,
         signal_group:   cond.signalGroup,
         // independent signal factors; neutral values when not applied
