@@ -327,7 +327,7 @@ function renderChartTypeCanvas(ct) {
     const span = (mx - mn) || 1;
     renderChart(c.getContext("2d"), c, ct.type, panel,
         mn - span * 0.12, mx + span * 0.12,
-        {violinScale: 7, ...getPlainCatalogOptions(ct.type)}, currentOrientation(), session.design.jitter);
+        {violinScale: 7, ...getPlainCatalogOptions(ct)}, currentOrientation(), session.design.jitter);
 }
 
 // Look up the live catalog variant so explanation functions survive localStorage round-trips.
@@ -336,12 +336,16 @@ function getLiveCatalogOptions(ct) {
     return entry?.variants.find(v => v.description === ct.options.description) ?? ct.options;
 }
 
-// Return the plain variant for a chart type (the one marked plain:true, or the first non-solo variant).
-// Used for training pages and thumbnails so the display doesn't depend on which variants were assigned.
-function getPlainCatalogOptions(chartType) {
-    const entry = CHART_TYPE_CATALOG.find(e => e.type === chartType);
+// Return the display variant for training pages and thumbnails.
+// For solo variants, the assigned variant is the only option, so use it directly.
+// For non-solo variants, use the plain-marked variant (or first non-solo) from the catalog.
+function getPlainCatalogOptions(ct) {
+    const liveOpts = getLiveCatalogOptions(ct);
+    if (liveOpts.solo)
+        return liveOpts;
+    const entry = CHART_TYPE_CATALOG.find(e => e.type === ct.type);
     if (!entry)
-        return {};
+        return liveOpts;
     const plain = entry.variants.find(v => v.plain);
     if (plain)
         return plain;
@@ -419,7 +423,7 @@ function renderOnboardingStep() {
     }
     else if (step.type === "chartType") {
         const ct = session.design.selectedChartTypes[step.index];
-        const opts = getPlainCatalogOptions(ct.type);
+        const opts = getPlainCatalogOptions(ct);
         UI.onboardingTitle.textContent = `How to read: ${opts.titleText ?? opts.description}`;
         const expl = typeof opts.explanation === "function" ? opts.explanation() : (opts.explanation ?? "");
         UI.onboardingText.innerHTML =
@@ -547,7 +551,7 @@ function renderChartTypeThumbs(thumbs) {
         c.width = thumbW * 2;   // 2× for crisp rendering
         c.height = thumbH * 2;
         const ct = session.design.selectedChartTypes[step.index];
-        const opts = getPlainCatalogOptions(ct.type);
+        const opts = getPlainCatalogOptions(ct);
         const panel = buildChartTypeExamplePanel(ct.type);
         let mn = Infinity, mx = -Infinity;
         for (const g of panel.groups) {
