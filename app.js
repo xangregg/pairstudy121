@@ -696,17 +696,14 @@ function finishStudy() {
     const scorePct = ratingStats.alignmentScore !== null
         ? Math.round(ratingStats.alignmentScore * 100) + "%"
         : "--";
-    const spearman = ratingStats.spearman !== null ? ratingStats.spearman.toFixed(2) : "--";
-    const kendall  = ratingStats.kendall  !== null ? ratingStats.kendall.toFixed(2)  : "--";
-    const gamma    = ratingStats.gamma    !== null ? ratingStats.gamma.toFixed(2)    : "--";
+
     statsEl.innerHTML =
         `<p>The study aims to evaluate the charts, not the participants, but if you're curious, here are your average responses on a 1–4 scale.</p>` +
         `<table class="rating-stats-table">` +
         `<thead><tr><th>Expected</th><th>Your average</th><th>Count</th></tr></thead>` +
         `<tbody>${rows}</tbody>` +
         `</table>` +
-        `<p style="margin-top:12px;">Alignment score: <strong>${scorePct}</strong> &nbsp;|&nbsp; ` +
-        `Spearman: <strong>${spearman}</strong> &nbsp;|&nbsp; τ-b: <strong>${kendall}</strong> &nbsp;|&nbsp; γ: <strong>${gamma}</strong></p>`;
+        `<p style="margin-top:12px;">Alignment score: <strong>${scorePct}</strong></p>`;
     statsEl.style.display = "block";
     if (PROLIFIC_PID && COMPLETION_CODE) {
         document.getElementById("completionCodeText").textContent = COMPLETION_CODE;
