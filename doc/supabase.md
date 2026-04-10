@@ -2,21 +2,23 @@
 
 ## Overview
 
-[Supabase](https://supabase.com) is an open-source backend-as-a-service built on PostgreSQL. This
-app uses it as a lightweight database to collect study data from participants without requiring a
-custom server.
+[Supabase](https://supabase.com) is an open-source backend-as-a-service built on PostgreSQL.
+This app uses it as a lightweight database to collect study data from participants
+without requiring a custom server.
 
-Data is written directly from the participant's browser using Supabase's REST API. There are three
-tables: `sessions` (one row per participant, written at the start of the main study),
-`responses` (one row per trial rating, written immediately after each response), and `comments`
-(optional free-text feedback submitted on the completion page).
+Data is written directly from the participant's browser using Supabase's REST API.
+There are three tables:
+`sessions` (one row per participant, written at the start of the main study),
+`responses` (one row per trial rating, written immediately after each response),
+and `comments` (optional free-text feedback submitted on the completion page).
 
-Writes use the project's publishable anon key, which is safe to embed in client-side code because
-row-level security policies restrict it to insert-only access. Reads for analysis should use the
-service role key from a secure environment.
+Writes use the project's publishable anon key,
+which is safe to embed in client-side code because row-level security policies
+restrict it to insert-only access.
+Reads for analysis should use the service role key from a secure environment.
 
-All writes are fire-and-forget — network errors are silently ignored so a failed submission does
-not interrupt the participant.
+All writes are fire-and-forget —
+network errors are silently ignored so a failed submission does not interrupt the participant.
 
 ---
 
@@ -32,7 +34,8 @@ const SUPA_KEY = "<your-publishable-anon-key>";
 Both values are found in your Supabase project under:
 **Project Settings → API → Project URL** and **API Keys → anon / public**
 
-The anon key is safe to include in client-side code. Do not use the `service_role` key here.
+The anon key is safe to include in client-side code.
+Do not use the `service_role` key here.
 
 ---
 
@@ -91,15 +94,18 @@ create table sessions (
 
 ### `trials`
 
-One row per trial rating, written immediately after each response. Replaces the older `responses` table.
+One row per trial rating, written immediately after each response.
+Replaces the older `responses` table.
 
-**Seeds:** `data_seed` is drawn from the screened DATA_SEEDS pool and fully determines the base sample
-values for both groups — sufficient to reconstruct the raw data given the signal parameters.
+**Seeds:** `data_seed` is drawn from the screened DATA_SEEDS pool and fully determines the base
+sample values for both groups — sufficient to reconstruct the raw data given the signal parameters.
 `trial_seed` is derived from the participant seed + trial index + condition and drives within-trial
-randomization (e.g. rendering details). `a_data`/`b_data` store the same data redundantly for
-analysis convenience, avoiding the need to keep analysis code in sync with the survey's data generation.
+randomization (e.g. rendering details).
+`a_data`/`b_data` store the same data redundantly for analysis convenience,
+avoiding the need to keep analysis code in sync with the survey's data generation.
 
-**Raw data scaling:** values are integers 0–1000 over a ±5 SD range; invertible via `value = i / 100.0 - 5`.
+**Raw data scaling:** values are integers 0–1000 over a ±5 SD range;
+invertible via `value = i / 100.0 - 5`.
 In CSV exports, `smallint[]` columns appear as `{v1,v2,...}` strings.
 
 ```sql
@@ -139,7 +145,8 @@ create policy "anon insert" on trials for insert to anon with check (true);
 
 ### `responses` (legacy)
 
-Kept for pilot data collected before the `trials` table was introduced. Not written to by current code.
+Kept for pilot data collected before the `trials` table was introduced.
+Not written to by current code.
 
 ```sql
 create table responses (
@@ -183,8 +190,10 @@ create table comments (
 
 ## Row-Level Security
 
-The app posts data using the anon key, so RLS must either be disabled for these tables or
-have an insert policy that allows anonymous writes. The simplest approach:
+The app posts data using the anon key,
+so RLS must either be disabled for these tables
+or have an insert policy that allows anonymous writes.
+The simplest approach:
 
 ```sql
 -- Allow anonymous inserts; no reads via anon key
@@ -197,8 +206,8 @@ create policy "anon insert" on responses for insert to anon with check (true);
 create policy "anon insert" on comments  for insert to anon with check (true);
 ```
 
-To read data for analysis, use the **service role key** from a secure environment (e.g., an
-R script or a Supabase Edge Function), never from client-side code.
+To read data for analysis, use the **service role key** from a secure environment
+(e.g., an R script or a Supabase Edge Function), never from client-side code.
 
 ---
 

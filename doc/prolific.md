@@ -2,8 +2,9 @@
 
 ## Overview
 
-The app supports Prolific integration via URL parameters. Prolific automatically appends participant
-identifiers to the study URL; the app reads these and stores them alongside each session.
+The app supports Prolific integration via URL parameters.
+Prolific automatically appends participant identifiers to the study URL;
+the app reads these and stores them alongside each session.
 
 ---
 
@@ -15,15 +16,16 @@ When creating your Prolific study, set the study URL to:
 https://<your-deployment-url>/?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}&pg=<encoded-completion-code>
 ```
 
-Prolific replaces `{{%PROLIFIC_PID%}}`, `{{%STUDY_ID%}}`, and `{{%SESSION_ID%}}` with real values
-when a participant clicks the link.
+Prolific replaces `{{%PROLIFIC_PID%}}`, `{{%STUDY_ID%}}`, and `{{%SESSION_ID%}}`
+with real values when a participant clicks the link.
 
 ---
 
 ## Completion Code Parameter (`pg`)
 
-The completion code is passed via the `pg` URL parameter. It is Base64-encoded so it is not
-immediately recognizable to participants in the browser address bar.
+The completion code is passed via the `pg` URL parameter.
+It is Base64-encoded so it is not immediately recognizable to participants
+in the browser address bar.
 
 **To encode your completion code:**
 
@@ -54,8 +56,8 @@ https://app.prolific.com/submissions/complete?cc=YOUR_COMPLETION_CODE
 
 Use the **plain** (non-encoded) code here — this is Prolific's own field, not the survey URL.
 
-The app will show a **Return to Prolific** button on the final page that links to this URL
-automatically. The button only appears when `PROLIFIC_PID` is present in the survey URL.
+The app will show a **Return to Prolific** button on the final page that links to this URL automatically.
+The button only appears when `PROLIFIC_PID` is present in the survey URL.
 
 ---
 
@@ -75,7 +77,8 @@ The following Prolific fields are stored in the `sessions` table alongside each 
 
 ## Testing Locally
 
-To test the Prolific flow without going through Prolific, manually add the parameters to the URL:
+To test the Prolific flow without going through Prolific,
+manually add the parameters to the URL:
 
 ```
 http://localhost/?PROLIFIC_PID=test123&STUDY_ID=study456&SESSION_ID=sess789&pg=<encoded-code>
