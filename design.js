@@ -1,7 +1,7 @@
 // design.js — study design construction and signal application
 
 import {shuffleInPlace, normalToSkewNormal} from "./utils.js";
-import {JITTER_CATALOG, MIN_CATEGORY_TRIALS, MAX_VARIANT_TRIALS} from "./config.js";
+import {JITTER_CATALOG, MIN_CATEGORY_TRIALS, MAX_VARIANT_TRIALS, N_DUPLICATE_SEEDS} from "./config.js";
 
 // Build a pool of nTrials signals drawn with probability proportional to weight.
 // Signals with weight=0 are excluded. Counts are assigned via the largest-remainder
@@ -256,6 +256,31 @@ export function makeDesign({rng, catalog, nChartTypes, nVariantTypes, distReps, 
                 const idx = poolIdxs[dist]++;
                 conditions.push({chartType, chartOptions, dist, signal: signalPools[dist][idx], dataSeed: seedPools[dist][idx]});
             }
+        }
+    }
+
+    // Add duplicate conditions for within-subject chart-type comparison.
+    // Each duplicate re-uses the seed+signal from an existing condition paired with a
+    // randomly selected variant from a different chart type category, so the same
+    // underlying data appears twice under different visualizations for the same participant.
+    // signalGroup and jitter are assigned below along with the rest of the conditions.
+    const nDups = Math.min(N_DUPLICATE_SEEDS, conditions.length);
+    if (nDups > 0) {
+        const shuffledIdx = Array.from({length: conditions.length}, (_, i) => i);
+        shuffleInPlace(shuffledIdx, rng);
+        for (let k = 0; k < nDups; k++) {
+            const orig = conditions[shuffledIdx[k]];
+            const otherTypes = selectedChartTypes.filter(ct => ct.type !== orig.chartType);
+            if (otherTypes.length === 0)
+                continue;
+            const paired = otherTypes[Math.floor(rng() * otherTypes.length)];
+            conditions.push({
+                chartType: paired.type,
+                chartOptions: paired.options,
+                dist: orig.dist,
+                signal: orig.signal,
+                dataSeed: orig.dataSeed,
+            });
         }
     }
 

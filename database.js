@@ -13,18 +13,23 @@ export function newParticipantId() {
 
 export function loadOrCreateSession() {
     const p = new URLSearchParams(window.location.search);
-    const urlPid = p.get("pid") ?? p.get("PROLIFIC_PID") ?? p.get("prolific_pid");
+    const prolificPid = p.get("PROLIFIC_PID") ?? p.get("prolific_pid");
+    const forcedPid   = p.get("pid");
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
         try {
             const saved = JSON.parse(raw);
-            // Resume saved session unless a different pid was requested via URL
-            if (!urlPid || saved.participantId === urlPid)
+            // Resume logic: pid= param matches participantId (testing/reproduce);
+            // Prolific mode matches on prolificPid; plain mode always resumes.
+            if (forcedPid ? saved.participantId === forcedPid
+                          : !prolificPid || saved.prolificPid === prolificPid)
                 return saved;
         } catch {
         }
     }
-    const participantId = urlPid ?? newParticipantId();
+    // Always generate a fresh random participant ID — never use the Prolific PID as the
+    // seed source, so participants get independent randomization across studies.
+    const participantId = forcedPid ?? newParticipantId();
     const participantSeed = hashStringToUint32(participantId);
     const session = {
         participantId, participantSeed,

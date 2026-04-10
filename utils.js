@@ -257,3 +257,12 @@ export function boxStats(values) {
 
     return {q1, med, q3, loWhisker, hiWhisker};
 }
+
+// Quotes a single CSV field per RFC 4180: wraps in double-quotes if the value
+// contains a comma, double-quote, or newline; doubles any embedded double-quotes.
+export function csvField(v) {
+    const s = String(v);
+    return (s.includes(",") || s.includes('"') || s.includes("\n"))
+        ? '"' + s.replace(/"/g, '""') + '"'
+        : s;
+}

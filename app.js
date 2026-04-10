@@ -1,7 +1,7 @@
 // app.js
 
 import {renderChart} from "./renderers.js";
-import {quantileSorted, ksStat, interpolate, spearmanCorrelation, kendallTauB, goodmanKruskalGamma} from "./utils.js";
+import {ksStat, interpolate, spearmanCorrelation, kendallTauB, goodmanKruskalGamma, csvField} from "./utils.js";
 import {mulberry32, hashStringToUint32, randomNormal, normalToSkewNormal} from "./utils.js";
 import {N_PER_GROUP, STORAGE_KEY, RATING_DELAY_MS, DIST_REPS, DIST_REPS_TESTING} from "./config.js";
 import {buildCatalog} from "./catalog.js";
@@ -119,25 +119,6 @@ const DATA_SEEDS = computeDataSeeds(distReps, !!SEEDREVIEW_DIST);
 let CHART_TYPE_CATALOG;
 
 // Compute per-group descriptive statistics from a panel for recording alongside ratings.
-function groupStats(panel) {
-    // groups are pre-sorted by finalizePanel; no sort needed here.
-    function stats(sorted) {
-        const n = sorted.length;
-        const mean = sorted.reduce((s, v) => s + v, 0) / n;
-        const sd = Math.sqrt(sorted.reduce((s, v) => s + (v - mean) ** 2, 0) / n);
-        return {
-            mean,
-            sd,
-            min: sorted[0],
-            q1: quantileSorted(sorted, 0.25),
-            med: quantileSorted(sorted, 0.50),
-            q3: quantileSorted(sorted, 0.75),
-            max: sorted[n - 1]
-        };
-    }
-
-    return {a: stats(panel.groups[0]), b: stats(panel.groups[1])};
-}
 
 
 /** ---------- Trial building ---------- **/
@@ -732,7 +713,6 @@ function recordResponse(rating) {
     const rtMs = Math.round(performance.now() - trialStartPerf);
     const isLast = currentTrial.trialIdx + 1 >= session.design.conditions.length;
     const finishedAt = isLast ? new Date().toISOString() : null;
-    const stats = groupStats(currentTrial.panel);
     const ks = ksStat(currentTrial.panel.groups[0], currentTrial.panel.groups[1]);
     // participantId/Seed and startedAtISO are session-level; not duplicated here.
     session.results.push({
@@ -743,7 +723,6 @@ function recordResponse(rating) {
         rtMs,
         ks,
         viewport: {w: window.innerWidth, h: window.innerHeight},
-        groupStats: stats
     });
     session.trialIndex = currentTrial.trialIdx + 1;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
@@ -753,29 +732,48 @@ function recordResponse(rating) {
 }
 
 function downloadResults() {
-    const payload = {
-        meta: {
-            app: "chart-perception-study",
-            version: "2.0",
-            createdAtISO: new Date().toISOString(),
-            nPerGroup: N_PER_GROUP,
-            scale: "1=No evidence, 2=Weak evidence, 3=Moderate evidence, 4=Strong evidence"
-        },
-        session: {
-            participantId: session.participantId,
-            participantSeed: session.participantSeed,
-            startedAtISO: session.startedAtISO,
-            finishedAtISO: session.finishedAtISO,
-            background: session.background ?? null,
-            design: session.design
-        },
-        results: session.results
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {type: "application/json"});
+    const bg = session.background ?? {};
+    const cols = [
+        "participant_id", "trial_index", "trial_seed", "data_seed",
+        "chart_type", "chart_variant", "orientation", "jitter",
+        "distribution", "signal_group",
+        "location", "spread", "skew", "bimodal", "outlier",
+        "rating", "rt_ms", "finished_at",
+        "bg_viz_frequency", "bg_chart_frequency",
+        "bg_mean", "bg_sd", "bg_median", "bg_quartile",
+        "bg_box_plot", "bg_sampling", "bg_significance",
+    ];
+    const bgVals = [
+        bg.vizFrequency ?? "", bg.chartFrequency ?? "",
+        bg.mean ?? "", bg.sd ?? "", bg.median ?? "", bg.quartile ?? "",
+        bg.boxPlot ?? "", bg.sampling ?? "", bg.linearRegression ?? "",
+    ];
+    const nResults = session.results.length;
+    const rows = [cols.join(",")];
+    session.results.forEach((r, i) => {
+        const cond = r.condition;
+        const sig = cond.signal;
+        const outlier = sig.nHigh != null
+            ? (sig.nHigh > 0 && sig.nLow > 0) ? sig.nHigh * 100 + sig.nLow
+                : sig.nHigh > 0 ? sig.nHigh : -sig.nLow
+            : 0;
+        const finishedAt = (i === nResults - 1) ? (session.finishedAtISO ?? "") : "";
+        rows.push([
+            session.participantId, r.trialIdx, r.trialSeed, cond.dataSeed,
+            cond.chartType, JSON.stringify(cond.chartOptions ?? {}),
+            session.design.orientation, cond.jitter,
+            cond.dist, cond.signalGroup,
+            sig.delta_sd ?? 0, sig.spread_factor ?? 1, sig.alpha ?? 0,
+            sig.separation ?? 0, outlier,
+            r.rating, r.rtMs, finishedAt,
+            ...bgVals,
+        ].map(csvField).join(","));
+    });
+    const blob = new Blob([rows.join("\n")], {type: "text/csv"});
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${session.participantId}-results.json`;
+    a.download = `${session.participantId}-results.csv`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -790,7 +788,7 @@ function copyTrialData() {
     const labels = groups.map((_, i) => String.fromCharCode(65 + i));
     for (let g = 0; g < groups.length; g++)
         for (const v of groups[g])
-            rows.push(`${v},${labels[g]}`);
+            rows.push([v, labels[g]].map(csvField).join(","));
     navigator.clipboard.writeText(rows.join("\n"));
 }
 
@@ -806,7 +804,7 @@ function downloadDesign() {
             e.delta_sd ?? "", e.ratio ?? "", e.spread_factor ?? "",
             e.alpha ?? "", e.separation ?? "", e.n ?? "", e.p ?? "",
             e.nHigh ?? "", e.nLow ?? "", e.magnitude ?? "", c.dataSeed
-        ].join(","));
+        ].map(csvField).join(","));
     });
     const blob = new Blob([rows.join("\n")], {type: "text/csv"});
     const url = URL.createObjectURL(blob);
