@@ -18,7 +18,7 @@ export const JITTER_CATALOG = ["random", "wilkinson", "beeswarm", "density rando
 // Number of repetitions (reps × chart type categories = baseline total trials) per distribution.
 // Set lognormal and binomial to 0 to exclude them from the current study.
 export const DIST_REPS          = {normal: 20, lognormal: 0, binomial: 0};
-export const DIST_REPS_TESTING  = {normal:  3, lognormal: 0, binomial: 0};
+export const DIST_REPS_TESTING  = {normal:  1, lognormal: 0, binomial: 0};
 
 // Trial allocation constraints across chart type categories and variants.
 // Each category receives at least MIN_CATEGORY_TRIALS; each variant receives at most

@@ -668,15 +668,15 @@ function finishStudy() {
     const statsEl = document.getElementById("ratingStats");
     const [s1, s2, s3, s4] = RATING_SCALE;
     const BUCKETS = [
-        {key: "1", label: s1.shortLabel},
-        {key: "2", label: s2.shortLabel},
-        {key: "3", label: s3.shortLabel},
-        {key: "4", label: s4.shortLabel},
+        {key: "1", label: s1.label},
+        {key: "2", label: s2.label},
+        {key: "3", label: s3.label},
+        {key: "4", label: s4.label},
     ];
     const rows = BUCKETS.map(({key, label}) => {
         const s = ratingStats[key];
         const avg = s.n > 0 ? s.mean.toFixed(1) : "--";
-        return `<tr><td>${label}</td><td>${avg}</td><td>${s.n}</td></tr>`;
+        return `<tr><td>${label} (${key})</td><td>${avg}</td><td>${s.n}</td></tr>`;
     }).join("");
     const scorePct = ratingStats.alignmentScore !== null
         ? Math.round(ratingStats.alignmentScore * 100) + "%"
@@ -685,7 +685,7 @@ function finishStudy() {
     statsEl.innerHTML =
         `<p>The study aims to evaluate the charts, not the participants, but if you're curious, here are your average responses on a 1–4 scale.</p>` +
         `<table class="rating-stats-table">` +
-        `<thead><tr><th>Expected</th><th>Your average</th><th>Count</th></tr></thead>` +
+        `<thead><tr><th>Expected Surprise</th><th>Your average</th><th>Count</th></tr></thead>` +
         `<tbody>${rows}</tbody>` +
         `</table>` +
         `<p style="margin-top:12px;">Alignment score: <strong>${scorePct}</strong></p>`;
