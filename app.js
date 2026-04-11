@@ -970,7 +970,11 @@ function renderSkewPreview() {
     }
 }
 
-if (SKEWPREVIEW) {
+if (PROLIFIC_PID && !COMPLETION_CODE) {
+    document.getElementById("errorPage").style.display = "block";
+    postComment(session, `Missing pg param. URL: ${window.location.href}`, NOSUBMIT);
+}
+else if (SKEWPREVIEW) {
     renderSkewPreview();
 }
 else if (SEEDREVIEW_DIST) {
