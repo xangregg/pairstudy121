@@ -24,13 +24,13 @@ const NOSUBMIT = params.has("nosubmit") || !!SEEDREVIEW_DIST || SKEWPREVIEW;
 const PROLIFIC_PID = params.get("PROLIFIC_PID") ?? params.get("prolific_pid");
 const PROLIFIC_STUDY_ID = params.get("STUDY_ID") ?? params.get("study_id");
 const PROLIFIC_SESSION_ID = params.get("SESSION_ID") ?? params.get("session_id");
-// Completion code is base64-encoded in the survey URL (?cc=...) so it isn't immediately
+// Completion code is base64-encoded in the survey URL (?pg=...) so it isn't immediately
 // readable to participants. Encode once with btoa("YOUR_CODE") when setting up the study URL.
 const COMPLETION_CODE = (() => {
     const raw = params.get("pg");
     if (!raw)
         return null;
-    try { return atob(raw); }
+    try { return atob(raw + "=".repeat((4 - raw.length % 4) % 4)); }
     catch { return raw; }
 })();
 
