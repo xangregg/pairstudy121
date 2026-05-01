@@ -1,0 +1,155 @@
+participant,group,orientation,region,view size,prefers_dark,n pairs,duration,bg_mean,bg_sd,bg_median,bg_quartile,bg_box_plot,bg_bar_chart,bg_scatter_plot,bg_regression,Wasserstein spearman
+P0a3ce95a23e32,prolific,vertical,Europe,large,true,100,9.18333333333331,2,2,2,3,3,3,2,3,0.203789191731227
+P0c5587734b9dd8,prolific,vertical,Central/South America,large,true,100,37.6833333333334,3,2,3,2,3,3,3,2,0.51706303609052
+P0f6da16be5a918,prolific,vertical,Europe,large,true,100,7.13333333333333,3,3,3,3,2,3,3,2,0.399209125982381
+P00a257bd877848,self,vertical,North America,large,false,95,5.16666666666667,3,3,2,1,3,3,3,3,0.698034235069196
+P012f371bf6346,prolific,vertical,Europe,large,false,100,6.3,2,2,2,2,2,2,2,2,0.395702678386532
+P04420696d7c008,friends,vertical,Europe,large,false,95,5.06666666666666,3,3,3,3,3,3,3,3,0.487716825633841
+P07bc38936986f,prolific,vertical,Asia,large,false,100,8.58333333333335,3,3,2,2,2,3,3,2,0.375774574073145
+P1b4a21818fe3e,friends,horizontal,Europe,small,true,85,,3,3,3,3,3,3,3,3,0.559144492971124
+P1d3fb39d0db9d8,friends,horizontal,North America,large,false,32,,3,3,3,3,3,3,3,3,0.738766455052307
+P1d9f4a078325e,friends,vertical,North America,small,true,95,12.0166666666667,3,3,3,3,3,3,3,3,0.6210870851625
+P1fae421d0d9698,prolific,vertical,Africa,small,true,100,11.3,2,2,1,2,3,3,2,3,-0.0537282138450867
+P2b300934f58ff,prolific,vertical,Europe,small,false,100,5.31666666666667,2,2,2,2,2,3,2,2,0.290453626803239
+P3a9bb168ee33c,prolific,vertical,Europe,small,true,100,7.60000000000001,3,2,2,1,1,3,2,1,0.247476323183565
+P3ac29875452c8,prolific,vertical,Africa,large,true,100,13.2666666666667,3,3,3,3,2,3,3,3,0.08342031194433
+P3c14f2832f1a38,prolific,vertical,Asia,small,false,100,4.58333333333333,3,3,3,3,3,3,2,3,0.0438813352108894
+P3f2b314cbea54,prolific,vertical,Africa,large,false,100,11.45,2,2,3,2,2,3,2,2,0.0692261252979109
+P3f26e4322dd83,prolific,vertical,Africa,large,true,100,22.35,3,3,3,2,2,3,2,3,0.0721198637025884
+P4ab8309d3923d,self,vertical,North America,large,false,95,16.75,2,2,3,1,3,3,3,3,0.580329494428419
+P4b447d8ea57008,self,vertical,North America,large,false,100,12.5833333333333,3,3,3,3,3,3,3,3,0.551219702374018
+P4b453ba72a5ff8,prolific,vertical,North America,large,false,100,4.10000000000001,3,3,3,3,3,3,3,3,0.746896694138188
+P4bf9ac79c2253,prolific,vertical,Africa,large,false,100,7,3,2,2,2,2,2,2,3,-0.0292864553802717
+P4c1cb70ba1b0d8,prolific,vertical,Europe,large,false,100,8.5,2,2,2,2,2,2,2,2,0.318406049893952
+P4c33ca9290579,,,,,,35,,,,,,,,,,0.0112280041308084
+P4eef3e55d6dde,prolific,vertical,Africa,large,false,100,3.83333333333333,2,3,3,3,3,3,3,2,0.00591589333215599
+P5a589291069df8,friends,vertical,North America,large,false,95,14.5333333333333,2,2,2,2,2,3,3,1,0.543920762359704
+P5d93cc1bb85f3,prolific,vertical,Africa,small,false,100,11.8166666666667,2,2,3,3,3,3,3,2,0.0416853418022991
+P5f5b1588757ed,friends,vertical,North America,large,false,100,5.06666666666666,3,3,3,3,3,3,3,3,0.647389095629073
+P5f13d6a83561c,prolific,vertical,Asia,large,false,100,21.2,3,3,3,3,2,3,3,2,0.355004662036908
+P6be4e2bd46fc4,prolific,vertical,Africa,large,true,100,5.05000000000001,3,2,3,3,3,2,3,2,-0.225624384215621
+P6f3970ed0c5aa8,prolific,vertical,Asia,large,true,100,7.85000000000001,3,2,3,2,2,3,2,2,-0.0042114399062327
+P7be82baacad938,prolific,vertical,Africa,large,false,100,15.55,2,2,3,2,3,3,3,3,-0.065627629133168
+P7bfe9d73f35bb,prolific,vertical,Africa,large,true,100,8.23333333333334,2,2,2,2,2,3,3,3,0.231724606669893
+P7df615dad37898,friends,vertical,North America,large,false,95,32.7166666666667,3,3,3,3,2,2,2,2,0.547193490165561
+P7e272bef0fc808,prolific,vertical,Europe,large,false,100,12.85,2,2,1,2,2,2,2,2,0.221059209421294
+P8b1c4bb780643,prolific,vertical,Africa,medium,true,100,25.4833333333333,3,3,3,1,2,3,2,1,0.473757938680668
+P8b6851ac1dbc3,prolific,vertical,Central/South America,large,true,100,12.4333333333333,3,3,3,3,3,3,3,3,0.233240108391528
+P8bab838edd3b1,prolific,vertical,Europe,medium,true,100,8.06666666666668,3,3,3,2,2,3,3,2,0.311454605586775
+P8c6814047f786,friends,horizontal,North America,large,false,95,9.63333333333333,3,3,3,3,3,3,3,3,0.608984803188094
+P8de43d770b8168,prolific,vertical,Africa,medium,false,100,10.4833333333333,3,3,3,3,2,3,3,2,0.056170195808213
+P9b253318cbdad,prolific,vertical,Europe,large,false,100,6.06666666666667,2,2,2,2,3,3,1,2,0.0289905325158964
+P9dd398c1fcf4,friends,vertical,Europe,small,true,95,38.3166666666666,3,2,3,3,3,3,3,3,0.590774536461978
+P9f776a916e1598,prolific,vertical,North America,large,true,100,8.16666666666666,2,2,2,1,1,2,2,1,0.0741329064879597
+P15ba1bff85db18,prolific,vertical,Africa,large,false,100,23.9833333333333,3,3,3,1,3,3,2,3,0.501967517494658
+P18a6e312dca0f8,self,horizontal,North America,large,false,95,5.21666666666665,3,3,3,3,3,3,3,3,0.640811698839487
+P24e584155f2ae,friends,horizontal,Europe,small,true,95,7.23333333333334,3,3,3,3,2,3,3,3,0.552810907629258
+P24ef1f7d3ffe48,prolific,vertical,North America,large,false,100,14.0833333333333,2,2,2,2,2,2,2,1,0.462102944179534
+P28bb3588ba307,prolific,vertical,Central/South America,small,false,100,8.08333333333334,1,2,2,2,2,3,2,2,0.200525144098204
+P28f69cf20adc3,prolific,vertical,Africa,large,false,100,19.7666666666667,3,2,3,2,1,3,2,1,0.401227225824196
+P29a3ece0641848,friends,horizontal,North America,large,false,95,68.9666666666665,3,3,3,3,3,3,3,3,0.457592154094117
+P30baff7b3fb5e8,prolific,vertical,Africa,large,false,100,11.2833333333333,3,3,3,3,2,3,3,2,0.340482481641907
+P30feb41c8ce668,friends,vertical,Europe,small,false,85,7.28333333333334,3,2,3,3,3,2,2,2,0.582736101713943
+P32da2b90496098,prolific,vertical,Europe,large,true,100,5.01666666666666,2,2,2,2,2,3,2,2,0.333056481103661
+P34b4329db26238,prolific,vertical,North America,large,true,100,8.33333333333334,2,3,2,1,1,2,1,2,0.0361917924437972
+P41a152fc932218,prolific,vertical,Europe,medium,true,100,8.45000000000001,2,2,3,2,2,3,2,2,0.509761017163448
+P44f1819764d248,prolific,vertical,Europe,large,true,100,4.69999999999999,1,2,3,3,2,3,3,2,0.223605537836101
+P49c7f8cc96f5a,prolific,vertical,Central/South America,large,true,100,10.45,3,3,3,2,2,3,2,2,0.467546802371812
+P60a450b853a878,prolific,vertical,Africa,large,false,100,15.8333333333333,3,3,2,2,2,3,3,3,0.591293255537146
+P65e08c4af3ab08,friends,vertical,Oceania,small,false,95,7.36666666666667,3,2,3,2,2,3,3,2,0.50585878706478
+P68e6533ab3935,prolific,vertical,Africa,large,true,100,13.6666666666667,3,2,3,2,2,3,2,2,0.197240721434202
+P71bf0d9e3cc94,prolific,vertical,Africa,large,false,100,23.1,3,3,3,3,3,3,3,3,0.236012110490726
+P79d257922ab7b,prolific,vertical,Europe,large,false,100,6.3,2,2,2,2,1,2,2,2,0.389938372689514
+P80f7938134cd28,friends,vertical,North America,large,false,85,8.28333333333333,3,3,3,3,3,3,3,3,0.55962671868087
+P88de4eaafac588,prolific,vertical,Africa,large,true,100,10.5,3,3,3,2,3,3,3,3,0.163874316575488
+P93a3ba8d6cef9,friends,vertical,North America,large,false,100,5.13333333333333,3,3,3,3,3,3,3,3,0.597721267113065
+P96e48f3c307588,friends,horizontal,North America,large,false,95,6.96666666666666,3,3,3,3,3,3,3,3,0.588676416910203
+P98f2b133581c48,prolific,vertical,Africa,large,true,100,11.95,3,2,3,3,2,3,2,1,0.360031229452978
+P98f7abb83f7f1,self,horizontal,North America,large,false,53,,3,3,3,3,3,3,3,3,0.662245844315769
+P127f3573b34b6,friends,horizontal,North America,large,false,95,5.11666666666667,3,3,3,3,3,3,3,3,0.661025958593504
+P194df33b3dc728,prolific,vertical,Europe,medium,false,100,25.65,3,3,3,3,3,3,3,3,0.015077342281526
+P196a24120c292,friends,horizontal,North America,large,true,95,,3,2,3,2,2,3,2,2,0.577112670494522
+P336b2c91ef4bc8,prolific,vertical,Africa,large,false,100,20.4,3,3,3,2,2,3,3,2,0.397348265558769
+P336d78d29bb2c,self,vertical,North America,large,false,95,4,2,2,3,1,3,3,3,3,0.709732942441164
+P693fcdf1fa33f,friends,vertical,North America,large,false,34,,3,2,3,2,2,2,2,2,0.575507289612011
+P742e3f2a4e668,prolific,vertical,Oceania,medium,true,100,10.6,2,2,2,2,2,2,2,2,0.49539721159401
+P745a08bbe355f,prolific,vertical,Europe,large,false,100,12,2,2,2,2,2,2,2,2,0.375222037884702
+P801d2e6724e93,friends,horizontal,North America,large,false,39,,3,2,3,3,3,3,3,2,0.67427078341153
+P820adaa121f89,prolific,vertical,North America,large,false,100,14.6666666666667,1,1,1,1,1,2,1,1,0.251300788036243
+P838ab6345e869,prolific,vertical,Africa,large,false,100,5.48333333333334,2,2,3,3,3,2,2,2,0.0141875556068053
+P855aff39cd1e,prolific,vertical,Europe,large,true,100,8.48333333333334,3,3,3,1,3,3,2,2,-0.0835232084339205
+P861d7bb3d3263,friends,horizontal,Central/South America,large,false,95,213.266666666667,3,3,3,3,3,3,3,3,0.63040902985629
+P878af2d8bb50a,friends,horizontal,North America,large,false,95,3.94999999999999,3,3,3,3,3,3,3,3,0.358277335864572
+P912aadbf78ab3,prolific,vertical,Africa,large,true,100,17.3333333333333,2,2,2,2,2,2,2,2,0.365572625790109
+P921f9e3400506,prolific,vertical,Europe,small,false,100,2.43333333333334,1,1,1,1,1,2,1,2,0
+P1506f7342b4b1,prolific,vertical,Europe,large,false,100,13.6666666666667,2,2,2,1,2,2,2,1,0.42611032159302
+P4340bd8c04bd2,friends,vertical,Central/South America,large,true,85,28.0333333333333,2,1,2,1,1,2,2,1,0.38099054794072
+P6570fbdb22e91,self,horizontal,North America,large,false,94,10.1333333333333,3,3,3,3,3,3,3,3,0.617031416982719
+P8822a4bdf0011,prolific,vertical,Africa,large,false,100,6.48333333333334,3,3,3,2,3,3,2,2,0.0709287917768686
+P41301aacbf68,prolific,vertical,Africa,large,true,100,8.31666666666669,2,3,3,1,2,3,2,2,-0.0431233490828647
+P45909b499d971,prolific,vertical,Africa,large,true,100,19.3333333333333,3,3,3,3,2,3,2,3,0.179499514980495
+P90329fd656b8c,prolific,vertical,Europe,small,false,100,6.01666666666666,2,3,2,3,2,3,3,2,0.565709862041908
+P234301b00ccd28,prolific,vertical,Europe,large,false,100,10.5166666666667,2,1,2,2,1,2,1,1,0.229818503974117
+P954165c7e7e478,friends,vertical,North America,large,false,95,11.8333333333333,3,3,3,3,3,3,3,3,0.712854205129632
+P7885063d948b4,prolific,vertical,Europe,large,false,100,19.1,2,3,2,2,1,3,3,3,0.106354159813937
+P8861470bef135,friends,horizontal,Europe,large,false,95,,3,3,3,3,3,3,3,3,0.722823399432969
+P86401841b32558,self,vertical,North America,large,false,100,5.01666666666666,3,3,3,3,3,3,3,3,0.719394815667647
+P71707124670b98,prolific,vertical,Africa,large,false,100,6.56666666666668,3,3,2,2,3,3,3,2,0.213236845338343
+Pa0509eda9845c8,self,vertical,North America,large,false,100,4.35000000000001,3,3,3,3,3,3,3,3,0.627570811573371
+Pa2fa902f28d4c,prolific,vertical,Africa,large,false,100,20.55,3,2,3,2,3,3,3,2,0.0741238962029165
+Pa3dc5e2180a0c8,prolific,vertical,Europe,large,false,100,2,2,3,3,2,3,3,2,3,-0.125951358170552
+Pa5d7d4ded8b718,friends,vertical,North America,small,true,95,6.26666666666666,3,3,3,2,2,3,3,3,0.524538014207451
+Pa41e5f559455a8,prolific,vertical,Europe,large,true,100,10,3,2,2,3,2,2,1,3,0.359347003727119
+Pa8344bf7299b9,prolific,vertical,Asia,large,true,100,21.8833333333334,3,2,3,1,1,3,3,1,0.0784364407774574
+Pa246911458179,self,vertical,North America,large,false,48,,3,3,3,3,3,3,3,2,0.580122134903312
+Paaeccec4669fd8,prolific,vertical,Africa,medium,false,100,9.58333333333335,3,3,3,3,3,3,3,3,-0.133056068612102
+Pab33df363b0ab8,friends,vertical,Europe,small,false,100,9.35000000000002,3,3,3,3,3,3,3,3,0.43988534410696
+Pafed68815eecf,prolific,vertical,Africa,large,false,100,11.1333333333333,3,3,3,3,3,3,3,3,0.134102977530637
+Pb0fd956ae3632,prolific,vertical,Europe,large,true,100,6.71666666666666,3,3,3,3,2,2,3,3,0.393124967462043
+Pb06fce8c8f0d3,prolific,vertical,Africa,small,true,100,5.60000000000001,3,2,3,3,3,3,3,2,-0.00743658961586025
+Pb9b102599efe2,friends,vertical,North America,large,false,95,24.5333333333333,2,2,2,2,2,2,2,2,0.624963270776377
+Pb6114caf197c68,prolific,vertical,Africa,medium,true,100,26.3833333333333,3,2,3,3,2,3,2,1,0.0994554047417616
+Pbc1c0a0d6b8f4,self,vertical,North America,large,false,96,6.14999999999999,3,3,3,3,3,3,3,3,0.660046017961954
+Pc00df5e2f60d6,prolific,vertical,Africa,large,false,100,11.55,1,1,2,1,2,2,2,1,0.0787158575693105
+Pc62fd6066ce5c8,prolific,vertical,Africa,large,false,100,16.0333333333333,3,3,3,3,3,3,3,3,0.243295730729731
+Pc76f868e5481d8,friends,vertical,North America,large,false,100,4.85000000000001,3,3,3,3,3,3,3,3,0.586813257955649
+Pc311ee814b83a,friends,vertical,North America,large,false,85,15.9333333333333,3,3,3,3,3,3,3,3,0.321301250955308
+Pc129603b3b715,prolific,vertical,Africa,small,false,100,4.91666666666667,1,1,2,3,3,3,2,3,0.0406086676147223
+Pccde367bb38388,prolific,vertical,Africa,large,false,100,10.7666666666667,1,1,1,3,3,3,3,3,0.0201748995558533
+Pced3b66778716,prolific,vertical,Africa,small,true,100,13.9166666666667,2,3,2,3,3,3,3,2,0.0761178120197376
+Pcf26fd8536142,prolific,vertical,Africa,large,true,100,8.81666666666669,3,3,3,3,3,3,3,3,0.101543518810815
+Pcfa4496f7381,friends,horizontal,Europe,small,true,95,10.5666666666667,3,3,3,3,3,3,3,3,0.487375160651181
+Pd04d39417e1038,friends,horizontal,Europe,small,false,95,7.64999999999999,3,2,3,3,2,3,3,2,0.421750969118193
+Pd1e28916f5c068,friends,horizontal,North America,large,false,95,8.14999999999999,3,3,3,3,3,3,3,3,0.71274678388607
+Pd50c4b7d832bc8,friends,vertical,North America,small,false,95,11.6166666666667,3,3,3,3,3,3,3,3,0.546507093570137
+Pdab1742e56b398,friends,horizontal,North America,large,true,95,26.3666666666667,3,2,3,2,2,3,3,1,0.393213284256426
+Pdb67bb1b42405,prolific,vertical,Europe,medium,true,100,11.4666666666667,3,2,3,1,2,3,1,2,0.0343901192219058
+Pdc586fb7d59838,prolific,vertical,Europe,large,false,100,23.6666666666667,2,2,2,1,2,2,2,1,0.407117721656396
+Pdd8e21ea08756,prolific,vertical,Europe,large,false,100,6.66666666666666,2,2,2,2,2,2,2,2,-0.440775655190735
+Pde142cc94d978,prolific,vertical,Africa,large,false,100,9.35000000000002,1,2,2,3,2,3,1,3,0.125544909646595
+Pe006ee07dd31b8,friends,vertical,Europe,small,false,95,,3,3,3,3,3,3,3,3,0.603952414666317
+Pe1b1bd5bf53798,friends,horizontal,North America,small,true,95,12.6833333333333,3,2,3,3,3,3,3,2,0.681117491060157
+Pe8b26295f4a8a8,prolific,vertical,Africa,large,true,100,12.0333333333333,3,3,3,3,3,3,3,3,0.0798504996544656
+Pe8f8f74d797778,prolific,vertical,Europe,large,false,100,8.38333333333333,2,1,2,1,2,3,2,1,0.101747318397345
+Pe9cdff2c9b6748,friends,vertical,North America,large,true,88,,3,3,3,3,3,3,3,3,0.600868348264212
+Pe34ee0ef0ac998,prolific,vertical,Europe,large,true,100,10.2166666666667,2,2,2,2,1,2,1,2,0.182737943916539
+Pe37e151154f6f,self,vertical,North America,large,false,100,4.71666666666666,3,3,3,3,3,3,3,3,0.704529806715287
+Pe95ed3bffd58e8,prolific,vertical,Europe,large,true,100,7.88333333333333,1,1,2,1,1,2,1,2,0.289859024923494
+Pe4578aca62ad28,prolific,vertical,Africa,medium,false,100,12.25,3,3,3,3,3,3,3,3,0.0848899164760155
+Pe7426bac029ed,prolific,vertical,Other,large,false,100,15.5666666666667,2,2,2,2,2,2,2,2,0.159610751054419
+Peb0360007d8c88,prolific,vertical,Europe,large,false,100,6.03333333333334,3,3,3,2,2,3,2,2,0.278321577023071
+Pebc545873956,prolific,vertical,Africa,large,false,100,9.46666666666667,3,3,3,3,3,3,3,3,0.0488012533532147
+Peda4eaa6323bf,prolific,vertical,Central/South America,large,false,100,8.35000000000002,3,2,2,2,2,3,2,2,0.528529506352889
+Pefcc3ed53ea48,prolific,vertical,Europe,small,false,100,4.94999999999999,2,2,2,2,2,2,2,2,0.106005753404224
+Pf0a191758f1df8,prolific,vertical,Africa,large,false,100,7.14999999999999,3,3,3,3,3,3,3,3,-0.130718707634683
+Pf032ca895b3998,prolific,vertical,Africa,large,true,100,7.63333333333333,3,3,3,3,3,3,3,3,-0.0191881239360541
+Pf2ea846e424798,prolific,vertical,Africa,large,true,100,22.3166666666667,3,3,3,3,3,3,3,3,0.304946522728027
+Pf6edc10fc04b48,prolific,vertical,Africa,large,true,100,15.85,3,3,3,3,3,2,2,2,0.174626857896682
+Pf8a7201296bcc,friends,vertical,Central/South America,small,true,95,7.68333333333332,3,3,3,3,3,3,3,3,0.566153851791667
+Pf70bb4969a3f8,prolific,vertical,North America,large,false,100,20.5333333333333,3,3,3,3,3,3,3,3,0.416779279646356
+Pf86c1918d5d81,prolific,vertical,Africa,large,false,100,9.16666666666665,3,2,3,3,2,3,3,3,0.0982154543059947
+Pf955d46f5e6198,self,vertical,North America,large,false,100,6.03333333333334,3,3,3,3,3,3,3,3,0.652978076963402
+Pf7706dbfcb24c,prolific,vertical,Africa,large,true,100,10.6333333333333,3,3,3,2,2,3,3,1,0.214758136191255
+Pf30713b0a8155,prolific,vertical,Africa,large,false,100,14.3666666666666,2,1,2,2,2,1,2,2,-0.064257712209347
+Pf94999c6832b8,self,vertical,North America,large,false,100,5.89999999999999,3,3,3,3,3,3,3,3,0.602201454897802
+Pf804106c45f72,prolific,vertical,Africa,large,false,100,8.96666666666667,3,3,3,3,1,3,3,2,-0.00298879687802358
