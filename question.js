@@ -28,17 +28,32 @@ export const BG_SECTIONS = [
 export const BG_QUESTIONS = BG_SECTIONS.flatMap(s => s.questions);
 
 // Switch between question framings here.
-// "evidence" — "How much evidence do these charts provide that A and B are genuinely different?"
-// "surprise" — "If A and B are random samples from the same source, how surprising is this difference?"
-const QUESTION_FRAMING = "surprise";
+// "confidence" — "Do these two samples come from the same source?"
+// "evidence"   — "How much evidence do these charts provide that A and B are genuinely different?"
+// "surprise"   — "If A and B are random samples from the same source, how surprising is this difference?"
+const QUESTION_FRAMING = "confidence";
 
-export const TRIAL_QUESTION = QUESTION_FRAMING === "surprise"
+export const TRIAL_QUESTION = QUESTION_FRAMING === "confidence"
+    ? "Do these two samples come from the same source?"
+    : QUESTION_FRAMING === "surprise"
     ? "How surprising would it be if samples A and B were from the same source?"
     : "How much evidence do these charts provide that A and B are genuinely different?";
 
-// The four rating levels shown in training and used during trials.
-// label: short display text; description: the full explanation shown to participants.
-export const RATING_SCALE = QUESTION_FRAMING === "surprise"
+// The rating levels shown in training and used during trials.
+// label: main button text; subtitle: secondary line; description: full explanation shown to participants.
+export const RATING_SCALE = QUESTION_FRAMING === "confidence"
+    ? [
+        {
+            label: "Same source", subtitle: "likely random variation", shortLabel: "Same",
+            description: "The charts look consistent with random sampling from the same source. " +
+                "The difference is likely just noise.",
+        },
+        {
+            label: "Different sources", subtitle: "a real difference", shortLabel: "Different",
+            description: "The charts look more different than random sampling alone would typically produce.",
+        },
+    ]
+    : QUESTION_FRAMING === "surprise"
     ? [
         {
             label: "Not surprising", shortLabel: "Not",
@@ -83,13 +98,17 @@ export const RATING_SCALE = QUESTION_FRAMING === "surprise"
 // HTML for the "Your Task" onboarding step.
 export function yourTaskHTML(total) {
     const rows = RATING_SCALE.map(r => {
-        const [word1, ...rest] = r.label.split(" ");
-        const cellLabel = rest.length
-            ? `${word1}<br/><span class="label-dim">${rest.join(" ")}</span>`
-            : word1;
+        const cellLabel = r.subtitle
+            ? `${r.label}<br/><span class="label-dim">${r.subtitle}</span>`
+            : r.label;
         return `<tr><td><strong>${cellLabel}</strong></td><td>${r.description}</td></tr>`;
     }).join("");
-    const intro = QUESTION_FRAMING === "surprise"
+    const intro = QUESTION_FRAMING === "confidence"
+        ? `<p>You will see <strong>${total} pairs</strong> of charts. Recall that each chart
+            represents 50 values sampled from some source. For each pair, indicate whether
+            you think the two samples come from the <strong>same source</strong> or
+            <strong>different sources</strong>.</p>`
+        : QUESTION_FRAMING === "surprise"
         ? `<p>You will see <strong>${total} pairs</strong> of charts. Recall that each chart
             represents 50 values sampled from some source. For each pair, rate how surprising
             it would be if both samples were from the same source.</p>`

@@ -1,25 +1,31 @@
 // design.js — study design construction and signal application
 
-import {shuffleInPlace, normalToSkewNormal} from "./utils.js";
+import {shuffleInPlace} from "./utils.js";
 import {JITTER_CATALOG, MIN_CATEGORY_TRIALS, MAX_VARIANT_TRIALS, N_DUPLICATE_SEEDS} from "./config.js";
 
 // Build a pool of nTrials signals drawn with probability proportional to weight.
-// Signals with weight=0 are excluded. Counts are assigned via the largest-remainder
-// method so they sum exactly to nTrials. The pool is then shuffled.
+// Signals with weight=0 are excluded. Each entry gets floor(weight/total * nTrials) slots;
+// remaining slots are filled by random sampling from a weight-proportional pool.
 export function makeWeightedSignalPool(signals, nTrials, rng) {
     const active = signals.filter(e => (e.weight ?? 10) > 0);
     const totalWeight = active.reduce((s, e) => s + (e.weight ?? 10), 0);
     const floats  = active.map(e => (e.weight ?? 10) / totalWeight * nTrials);
     const counts  = floats.map(f => Math.floor(f));
-    let remaining = nTrials - counts.reduce((a, b) => a + b, 0);
-    const order   = floats.map((f, i) => i).sort((a, b) => (floats[b] - counts[b]) - (floats[a] - counts[a]));
-    for (let i = 0; i < remaining; i++)
-        counts[order[i]]++;
     const pool = [];
     for (let i = 0; i < active.length; i++)
         for (let j = 0; j < counts[i]; j++)
             pool.push(active[i]);
     shuffleInPlace(pool, rng);
+    let remaining = nTrials - pool.length;
+    if (remaining > 0) {
+        const extras = [];
+        for (let i = 0; i < active.length; i++)
+            for (let j = 0; j < active[i].weight; j++)
+                extras.push(active[i]);
+        shuffleInPlace(extras, rng);
+        for (let i = 0; i < remaining; i++)
+            pool.push(extras[i]);
+    }
     return pool;
 }
 
@@ -54,19 +60,24 @@ export function applySignal(panel, dist, signal, rng, signalGroup = 1) {
     }
 
     if (signal.type === "skew") {
-        // Probability integral transform: map each existing z ~ N(0,1) to the same quantile
-        // in SN(alpha), then standardize to mean 0.
-        // This is a deterministic transform of the base data — no new RNG draws needed.
-        // Median-center and normalize spread so the two groups have matched medians and
-        // matched SD (~1), leaving asymmetric quartiles/tails as the signal.
-        const alpha  = signal.alpha;
-        const delta  = alpha / Math.sqrt(1 + alpha * alpha);
-        const sigma  = Math.sqrt(1 - 2 * delta * delta / Math.PI);
-        const median = normalToSkewNormal(0, alpha);
+        // Log-normal-like transform: sgn(s) * |s|^y where s is the base parameter and y
+        // is the data value. For s > 0 this produces a right-skewed distribution (s^y is
+        // log-normal when y ~ N(0,1)); negative s mirrors it for left skew.
+        // Normalize empirically so mean=0, SD=1 leaving only the shape as the signal.
+        const s = signal.base;
+        const sign = Math.sign(s), absS = Math.abs(s);
+        const indices = [], transformed = [];
         for (let i = 0; i < panel.y.length; i++) {
             if (panel.group[i] !== signalGroup) continue;
-            panel.y[i] = (normalToSkewNormal(panel.y[i], alpha) - median) / sigma;
+            indices.push(i);
+            transformed.push(sign * Math.pow(absS, panel.y[i]));
         }
+        const n = transformed.length;
+        const mean = transformed.reduce((a, b) => a + b, 0) / n;
+        const sd = Math.sqrt(transformed.reduce((a, v) => a + (v - mean) ** 2, 0) / n);
+        indices.forEach((idx, i) => {
+            panel.y[idx] = sd > 0 ? (transformed[i] - mean) / sd : 0;
+        });
         return panel;
     }
 
@@ -154,23 +165,31 @@ export function makeDesign({rng, catalog, nChartTypes, nVariantTypes, distReps, 
     const distSignals = {
         normal: [
             {type: "null",    level: "null",     weight: 8},
-            {type: "location", delta_sd: 0.5, level: "weak",     weight: 5},
-            {type: "location", delta_sd: 0.8, level: "moderate", weight: 10},
-            {type: "location", delta_sd: 1.1, level: "strong",   weight: 8},
-            {type: "location", delta_sd: 1.4, level: "strong",   weight: 0},
+            {type: "location", delta_sd: 0.3, level: "weak",     weight: 2},
+            {type: "location", delta_sd: 0.4, level: "weak",     weight: 2},
+            {type: "location", delta_sd: 0.5, level: "moderate", weight: 2},
+            {type: "location", delta_sd: 0.6, level: "moderate", weight: 2},
+            {type: "location", delta_sd: 0.7, level: "moderate", weight: 2},
+            {type: "location", delta_sd: 0.8, level: "moderate", weight: 2},
+            {type: "location", delta_sd: 0.9, level: "strong",   weight: 2},
+            {type: "location", delta_sd: 1.0, level: "strong",   weight: 2},
+            {type: "location", delta_sd: 1.1, level: "strong",   weight: 0},
             {type: "spread", spread_factor: 1.2, level: "weak",     weight: 3},
-            {type: "spread", spread_factor: 1.5, level: "moderate", weight: 10},
-            {type: "spread", spread_factor: 1.8, level: "strong",   weight: 8},
-            {type: "skew", alpha:  7, level: "strong",   weight: 4},
-            {type: "skew", alpha:  5, level: "moderate", weight: 4},
-            {type: "skew", alpha:  3, level: "weak",     weight: 1},
-            {type: "skew", alpha: -3, level: "weak",     weight: 1},
-            {type: "skew", alpha: -5, level: "moderate", weight: 4},
-            {type: "skew", alpha: -7, level: "strong",   weight: 4},
-            {type: "bimodal", separation: 5.0, level: "strong",   weight: 4},
-            {type: "bimodal", separation: 4.0, level: "strong",   weight: 6},
-            {type: "bimodal", separation: 3.0, level: "moderate", weight: 6},
-            {type: "bimodal", separation: 2.0, level: "weak",     weight: 4},
+            {type: "spread", spread_factor: 1.4, level: "moderate", weight: 3},
+            {type: "spread", spread_factor: 1.6, level: "moderate", weight: 5},
+            {type: "spread", spread_factor: 1.8, level: "strong",   weight: 5},
+            {type: "skew", base:  2.50, level: "strong",    weight: 2},
+            {type: "skew", base:  2.25, level: "strong",    weight: 2},
+            {type: "skew", base:  2.00, level: "moderate",  weight: 2},
+            {type: "skew", base:  1.75, level: "weak",      weight: 1},
+            {type: "skew", base: -1.75, level: "weak",      weight: 1},
+            {type: "skew", base: -2.00, level: "moderate",  weight: 2},
+            {type: "skew", base: -2.25, level: "strong",    weight: 2},
+            {type: "skew", base: -2.50, level: "strong",    weight: 2},
+            {type: "bimodal", separation: 5.0, level: "strong",   weight: 3},
+            {type: "bimodal", separation: 4.0, level: "strong",   weight: 3},
+            {type: "bimodal", separation: 3.0, level: "moderate", weight: 3},
+            {type: "bimodal", separation: 2.0, level: "weak",     weight: 3},
             {type: "outlier", nHigh: 2, nLow: 0, magnitude: 4.0, level: "moderate", weight: 0},
             {type: "outlier", nHigh: 1, nLow: 0, magnitude: 4.0, level: "weak",     weight: 0},
             {type: "outlier", nHigh: 0, nLow: 1, magnitude: 4.0, level: "weak",     weight: 0},

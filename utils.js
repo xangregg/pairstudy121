@@ -142,6 +142,25 @@ export function ksStat(a, b) {
     return d;
 }
 
+// Wasserstein-1 (earth mover's) distance for two sorted equal-length arrays,
+// normalized by the IQR of the combined dataset to match JMP's computation.
+export function wassersteinStat(a, b) {
+    const n = a.length;
+    let sum = 0;
+    for (let i = 0; i < n; i++)
+        sum += Math.abs(a[i] - b[i]);
+    const raw = sum / n;
+    // Merge two sorted arrays to compute combined IQR.
+    const combined = new Array(n * 2);
+    let i = 0, j = 0, k = 0;
+    while (i < n && j < n)
+        combined[k++] = a[i] <= b[j] ? a[i++] : b[j++];
+    while (i < n) combined[k++] = a[i++];
+    while (j < n) combined[k++] = b[j++];
+    const iqr = quantileSorted(combined, 0.75) - quantileSorted(combined, 0.25);
+    return iqr > 0 ? raw / iqr : raw;
+}
+
 // Goodman-Kruskal γ: (C − D) / (C + D), ignoring all tied pairs.
 // Ranges from -1 to 1; tied pairs (on either variable) are excluded entirely.
 export function goodmanKruskalGamma(xs, ys) {

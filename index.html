@@ -151,7 +151,7 @@
         .question { font-size: 20px; margin: 18px 0 22px; color: var(--text-muted); }
         .rating-row {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(2, 1fr);
             gap: 18px;
             margin: 0 40px 0 0;
         }
@@ -175,9 +175,11 @@
             body.inhibit-hover .ratingBtn:hover { background: var(--surface); border-color: var(--border); }
         }
         .ratingBtn:disabled { opacity: 1; cursor: pointer; }
-        .ratingBtn .num { font-size: 17px; font-weight: 700; color: var(--text-secondary); visibility: hidden; }
+        .ratingBtn .num { font-size: 18px; font-weight: 700; color: var(--text-secondary); visibility: hidden; }
         .ratingBtn .label { color: var(--text-secondary); font-weight: bold; }
         .ratingBtn .label-dim { font-weight: normal; }
+        .ratingBtn .label-main { font-size: 20px; }
+        .ratingBtn .label-subtitle { font-size: 17px; font-weight: normal; color: var(--text-muted); }
         .ratingBtn .label-short { display: none; }
         @media (max-width: 480px) {
             .rating-row { gap: 8px; margin-right: 0; }
@@ -301,6 +303,7 @@
         <button id="downloadDesignBtn" disabled>Download design</button>
         <button id="copyDataBtn" disabled>Copy data</button>
         <button id="resetBtn">Reset session</button>
+        <button id="downloadSimulationBtn">Download simulation</button>
     </div>
 
     <details id="debugDetails">

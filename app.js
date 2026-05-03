@@ -1,7 +1,7 @@
 // app.js
 
 import {renderChart} from "./renderers.js";
-import {ksStat, interpolate, spearmanCorrelation, kendallTauB, goodmanKruskalGamma, csvField} from "./utils.js";
+import {wassersteinStat, ksStat, spearmanCorrelation, kendallTauB, goodmanKruskalGamma, csvField} from "./utils.js";
 import {mulberry32, hashStringToUint32, randomNormal, normalToSkewNormal} from "./utils.js";
 import {N_PER_GROUP, STORAGE_KEY, RATING_DELAY_MS, DIST_REPS, DIST_REPS_TESTING} from "./config.js";
 import {buildCatalog} from "./catalog.js";
@@ -60,10 +60,9 @@ RATING_SCALE.forEach((r, i) => {
     btn.className = "ratingBtn";
     btn.dataset.rating = String(i + 1);
     btn.disabled = true;
-    const [word1, ...rest] = r.label.split(" ");
-    const fullLabel = rest.length
-        ? `${word1}<br/><span class="label-dim">${rest.join(" ")}</span>`
-        : word1;
+    const fullLabel = r.subtitle
+        ? `<span class="label-main">${r.label}</span><br/><span class="label-subtitle">${r.subtitle}</span>`
+        : r.label;
     btn.innerHTML = `<span class="label label-full">${fullLabel}</span><span class="label label-short">${r.shortLabel}</span>`;
     ratingRow.appendChild(btn);
 });
@@ -92,6 +91,7 @@ const UI = {
     downloadDesignBtn: document.getElementById("downloadDesignBtn"),
     copyDataBtn: document.getElementById("copyDataBtn"),
     resetBtn: document.getElementById("resetBtn"),
+    downloadSimulationBtn: document.getElementById("downloadSimulationBtn"),
     ratingBtns: Array.from(document.querySelectorAll(".ratingBtn")),
     completionPage: document.getElementById("completionPage"),
     commentField: document.getElementById("commentField"),
@@ -602,60 +602,62 @@ function nextTrial() {
     UI.finishedMsg.textContent = "";
 }
 
-// K-S thresholds (N=50 per group) mapping realized D to expected rating 1–4.
-//  for N=50 per group, the K-S critical values (p=0.05 ≈ 0.27, p=0.01 ≈ 0.32) give rough anchors.
-const KS_THRESHOLDS = [0.15, 0.24, 0.32]; // boundaries between ratings 1/2, 2/3, 3/4
+// Wasserstein thresholds (N=50 per group) mapping distance to expected bucket 1–4.
+// Approximate boundaries — calibrated against round 1 — for entertainment only.
+const W_THRESHOLDS = [0.2, 0.28, 0.38]; // boundaries between buckets 1/2, 2/3, 3/4
+
+// Per-signal-type multipliers applied to Wasserstein before bucketing.
+// Boost types where Wasserstein underestimates statistical difference.
+const W_MULTIPLIERS = {
+    location: 0.9,
+    spread:   1.0,
+    skew:     1.3,
+    bimodal:  1.2,
+    outlier:  1.0,
+};
 
 // Integer bucket (1–4) for table grouping.
-function ksToExpectedRating(ks) {
-    if (ks < KS_THRESHOLDS[0])
+function wToExpectedBucket(w, signalType) {
+    const m = W_MULTIPLIERS[signalType] ?? 1.0;
+    const adjusted = w * m;
+    if (adjusted < W_THRESHOLDS[0])
         return 1;
-    if (ks < KS_THRESHOLDS[1])
+    if (adjusted < W_THRESHOLDS[1])
         return 2;
-    if (ks < KS_THRESHOLDS[2])
+    if (adjusted < W_THRESHOLDS[2])
         return 3;
     return 4;
 }
 
-// Piecewise-linear interpolation of ks → continuous expected rating.
-// Anchors extend below 1 and above 4 to allow overage at the endpoints,
-// so extreme KS values don't produce artificially large penalties.
-function ksInterpolated(ks) {
-    const anchors = [0, 0.05, ...KS_THRESHOLDS, 0.44, 1.0];
-    const ratings = [0.5, 1, 1.5, 2.5, 3.5, 4.4, 4.5]; // allow overage
-    return interpolate(ks, anchors, ratings);
-}
-
 function computeRatingStats() {
     const buckets = {1: [], 2: [], 3: [], 4: []};
-    let totalSqErr = 0;
     const ksValues = [], ratings = [];
-    const grace = 0.25; // no penalty within this much
 
     for (const r of session.results) {
-        if (r.ks == null)
+        if (r.wasserstein == null)
             continue;
-        buckets[ksToExpectedRating(r.ks)].push(r.rating);
-        let ksInterpolatedRating = ksInterpolated(r.ks);
-        if ((r.rating === 4 && ksInterpolatedRating >= 4) || (r.rating === 1 && ksInterpolatedRating <= 1))
-            ;   // no error -- can't get any closer
-        else {
-            const rDiff = Math.max(0, Math.abs(r.rating - ksInterpolatedRating) - grace);
-            totalSqErr += rDiff ** 2;
-        }
-        ksValues.push(r.ks);
+        buckets[wToExpectedBucket(r.wasserstein, r.condition.signal.type)].push(r.rating);
+        ksValues.push(r.wasserstein);
         ratings.push(r.rating);
     }
-    const n = ksValues.length;
-    const avg = arr => arr.length === 0 ? null : arr.reduce((a, b) => a + b, 0) / arr.length;
     const byBucket = Object.fromEntries(
-        Object.entries(buckets).map(([k, arr]) => [k, {mean: avg(arr), n: arr.length}])
+        Object.entries(buckets).map(([k, arr]) => {
+            const n = arr.length;
+            const nDifferent = arr.filter(r => r === 2).length;
+            return [k, {n, nDifferent}];
+        })
     );
-    // Score: 1 − MSE/9, where 9 = max possible squared error (1−4)²
-    byBucket.alignmentScore = n > 0 ? Math.max(0, 1 - (totalSqErr / n) / ((3 - grace) ** 2)) : null;
+    // Alignment: weighted % correct across buckets 1, 3, 4.
+    // Bucket 1 → same (weight 1), bucket 3 → different (weight 0.5), bucket 4 → different (weight 1).
+    const w3 = 0.5;
+    const b1 = byBucket[1], b3 = byBucket[3], b4 = byBucket[4];
+    const weightedTotal = b1.n + b3.n * w3 + b4.n;
+    byBucket.alignmentScore = weightedTotal > 0
+        ? ((b1.n - b1.nDifferent) + b3.nDifferent * w3 + b4.nDifferent) / weightedTotal
+        : null;
     byBucket.spearman = spearmanCorrelation(ksValues, ratings);
-    byBucket.kendall = kendallTauB(ksValues, ratings);
-    byBucket.gamma   = goodmanKruskalGamma(ksValues, ratings);
+    byBucket.kendall  = kendallTauB(ksValues, ratings);
+    byBucket.gamma    = goodmanKruskalGamma(ksValues, ratings);
     return byBucket;
 }
 
@@ -666,29 +668,31 @@ function finishStudy() {
     setRatingEnabled(false);
     showCompletion();
     const statsEl = document.getElementById("ratingStats");
-    const [s1, s2, s3, s4] = RATING_SCALE;
     const BUCKETS = [
-        {key: "1", label: s1.label},
-        {key: "2", label: s2.label},
-        {key: "3", label: s3.label},
-        {key: "4", label: s4.label},
+        {key: "1", label: "Same"},
+        {key: "2", label: "Slightly different"},
+        {key: "3", label: "Moderately different"},
+        {key: "4", label: "Very different"},
     ];
     const rows = BUCKETS.map(({key, label}) => {
         const s = ratingStats[key];
-        const avg = s.n > 0 ? s.mean.toFixed(1) : "--";
-        return `<tr><td>${label} (${key})</td><td>${avg}</td><td>${s.n}</td></tr>`;
+        const pct = s.n > 0 ? Math.round(s.nDifferent / s.n * 100) + "%" : "--";
+        return `<tr><td>${label}</td><td>${s.n}</td><td>${pct}</td></tr>`;
     }).join("");
     const scorePct = ratingStats.alignmentScore !== null
         ? Math.round(ratingStats.alignmentScore * 100) + "%"
         : "--";
+    const fmt = v => v != null ? v.toFixed(2) : "--";
+    const {spearman, kendall, gamma} = ratingStats;
 
     statsEl.innerHTML =
-        `<p>The study aims to evaluate the charts, not the participants, but if you're curious, here are your average responses on a 1–4 scale.</p>` +
+        `<p>The study aims to evaluate the charts, not the participants, but if you're curious, here are your response patterns.</p>` +
         `<table class="rating-stats-table">` +
-        `<thead><tr><th>Expected Surprise</th><th>Your average</th><th>Count</th></tr></thead>` +
+        `<thead><tr><th>Expected difference</th><th>Count</th><th>% marked Different</th></tr></thead>` +
         `<tbody>${rows}</tbody>` +
         `</table>` +
-        `<p style="margin-top:12px;">Alignment score: <strong>${scorePct}</strong></p>`;
+        `<p style="margin-top:12px;">Alignment score (extreme buckets): <strong>${scorePct}</strong></p>` +
+        `<p>Spearman: <strong>${fmt(spearman)}</strong> &nbsp; Kendall: <strong>${fmt(kendall)}</strong> &nbsp; Gamma: <strong>${fmt(gamma)}</strong></p>`;
     statsEl.style.display = "block";
     if (PROLIFIC_PID && COMPLETION_CODE) {
         document.getElementById("completionCodeText").textContent = COMPLETION_CODE;
@@ -713,15 +717,15 @@ function recordResponse(rating) {
     const rtMs = Math.round(performance.now() - trialStartPerf);
     const isLast = currentTrial.trialIdx + 1 >= session.design.conditions.length;
     const finishedAt = isLast ? new Date().toISOString() : null;
-    const ks = ksStat(currentTrial.panel.groups[0], currentTrial.panel.groups[1]);
+    const wasserstein = wassersteinStat(currentTrial.panel.groups[0], currentTrial.panel.groups[1]);
     // participantId/Seed and startedAtISO are session-level; not duplicated here.
     session.results.push({
         trialIdx: currentTrial.trialIdx,
         trialSeed: currentTrial.trialSeed,
         condition: currentTrial.condition,
-        rating,   // 1..4
+        rating,   // 1..2
         rtMs,
-        ks,
+        wasserstein,
         viewport: {w: window.innerWidth, h: window.innerHeight},
     });
     session.trialIndex = currentTrial.trialIdx + 1;
@@ -763,7 +767,7 @@ function downloadResults() {
             cond.chartType, JSON.stringify(cond.chartOptions ?? {}),
             session.design.orientation, cond.jitter,
             cond.dist, cond.signalGroup,
-            sig.delta_sd ?? 0, sig.spread_factor ?? 1, sig.alpha ?? 0,
+            sig.delta_sd ?? 0, sig.spread_factor ?? 1, sig.base ?? 1,
             sig.separation ?? 0, outlier,
             r.rating, r.rtMs, finishedAt,
             ...bgVals,
@@ -774,6 +778,65 @@ function downloadResults() {
     const a = document.createElement("a");
     a.href = url;
     a.download = `${session.participantId}-results.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+}
+
+function downloadSimulation() {
+    const N_SIM = 100;
+    const cols = [
+        "participant_id", "trial_index", "trial_seed", "data_seed",
+        "chart_type", "chart_variant", "orientation", "jitter",
+        "distribution", "signal_group",
+        "location", "spread", "skew", "bimodal", "outlier",
+        "wasserstein", "ks", "a_data", "b_data",
+    ];
+    const scaleData = arr => arr.map(v => Math.max(0, Math.min(1000, Math.round((v + 5) * 100))));
+    const rows = [cols.join(",")];
+    for (let p = 0; p < N_SIM; p++) {
+        const participantId = `sim_${String(p + 1).padStart(4, "0")}`;
+        const participantSeed = hashStringToUint32(participantId);
+        const rng = mulberry32((participantSeed ^ 0xA5A5A5A5) >>> 0);
+        const design = makeDesign({
+            rng, catalog: CHART_TYPE_CATALOG,
+            nChartTypes: N_CHART_TYPES, nVariantTypes: N_VARIANT_TYPES,
+            distReps, dataSeeds: DATA_SEEDS,
+        });
+        design.conditions.forEach((cond, trialIdx) => {
+            const conditionId = `${cond.chartType}|${JSON.stringify(cond.chartOptions)}|${cond.dist}|${JSON.stringify(cond.signal)}|${cond.dataSeed}`;
+            const trialSeed = hashStringToUint32(`${participantSeed}|${trialIdx}|${conditionId}`);
+            const trialRng = mulberry32(trialSeed);
+            const raw = generateBasePanel(cond.dist, cond.dataSeed, cond.signal, cond.signalGroup);
+            if (cond.dist !== "binomial")
+                applySignal(raw, cond.dist, cond.signal, trialRng, cond.signalGroup);
+            const panel = finalizePanel(raw.y, raw.group);
+            const w = wassersteinStat(panel.groups[0], panel.groups[1]);
+            const ks = ksStat(panel.groups[0], panel.groups[1]);
+            const sig = cond.signal;
+            const outlier = sig.nHigh != null
+                ? (sig.nHigh > 0 && sig.nLow > 0) ? sig.nHigh * 100 + sig.nLow
+                    : sig.nHigh > 0 ? sig.nHigh : -sig.nLow
+                : 0;
+            rows.push([
+                participantId, trialIdx, trialSeed, cond.dataSeed,
+                cond.chartType, JSON.stringify(cond.chartOptions ?? {}),
+                design.orientation, cond.jitter,
+                cond.dist, cond.signalGroup,
+                sig.delta_sd ?? 0, sig.spread_factor ?? 1, sig.base ?? 1,
+                sig.separation ?? 0, outlier,
+                w, ks,
+                JSON.stringify(scaleData(panel.groups[0])),
+                JSON.stringify(scaleData(panel.groups[1])),
+            ].map(csvField).join(","));
+        });
+    }
+    const blob = new Blob([rows.join("\n")], {type: "text/csv"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "simulation.csv";
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -862,6 +925,7 @@ UI.downloadBtn.addEventListener("click", downloadResults);
 UI.downloadDesignBtn.addEventListener("click", downloadDesign);
 UI.copyDataBtn.addEventListener("click", copyTrialData);
 UI.resetBtn.addEventListener("click", resetSession);
+UI.downloadSimulationBtn.addEventListener("click", downloadSimulation);
 
 UI.submitCommentBtn.addEventListener("click", () => {
     const text = UI.commentField.value.trim().slice(0, 2000);
