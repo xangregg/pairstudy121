@@ -28,7 +28,7 @@ export function buildCatalog(currentOrientation, currentSession) {
                 {
                     titleText: "Box plot",
                     description: "Box plot: median, quartiles, and outlier range lines",
-                    explanation: () => `A box plot shows the middle 50% of values as a rectangle, with a ${horizontalWord()} line at the median.` +
+                    explanation: () => `A box plot shows the middle 50% of values as a rectangle, with a ${horizontalWord()} line at the median (the middle value).` +
                         ` Thin ${verticalWord()} lines (whiskers) extend to values within 1.5 times the box ${heightWord()}` +
                         `; more extreme values (outliers) appear as individual dots.`,
                     showDots: false, plain: true

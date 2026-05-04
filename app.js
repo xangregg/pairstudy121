@@ -194,14 +194,13 @@ function getOnboardingSteps() {
         .sort((a, b) => typeFirstTrial.get(a) - typeFirstTrial.get(b));
 
     const steps = [];
+    if (!session.skipIntro)
+        steps.push({type: "sampling1"});
     steps.push(
-        {type: "chartTypeIntro"},
         ...sortedTypes.map(chartType => ({type: "chartType", index: typeToFirstIdx.get(chartType)})),
     );
     if (!session.skipIntro) {
-        steps.push({type: "sampling1"});
-        for (let page = 0; page <= 4; page++) steps.push({type: "sameSources", page});
-        for (let page = 0; page <= 4; page++) steps.push({type: "diffSources",  page});
+        for (let page = 0; page <= 4; page++) steps.push({type: "diffSources", page});
     }
     steps.push({type: "responseScale"});
     return steps;
@@ -213,7 +212,7 @@ let _onboardingPanels = null;
 function getOnboardingPanels() {
     if (_onboardingPanels)
         return _onboardingPanels;
-    const rng = mulberry32(355000);
+    const rng = mulberry32(3550091);
     const N_SRC = 500;
     const sort = arr => arr.slice().sort((a, b) => a - b);
 
@@ -231,7 +230,7 @@ function getOnboardingPanels() {
     // Different-source data: four sources with distinct parameters, one sample each
     const diffParams = [
     {type: "location", delta_sd: 1.3},
-    {type: "spread", spread_factor: 0.6},
+    {type: "spread", spread_factor: 0.75},
     {type: "skew", base:  1.70},
     {type: "bimodal", separation: 4.0}];
     const diffSrcs    = diffParams.map((signal) => makeSample(rng, N_SRC, signal));
@@ -287,7 +286,7 @@ function renderSampling1WithChartTypes(panel1) {
     let mx = Math.max(sourceGroup[sourceGroup.length - 1], sampleGroup[sampleGroup.length - 1]);
     const span = (mx - mn) || 1;
     mn -= span * 0.08;
-    mx += span * 0.08;
+    mx += span * 0.18;
 
     const chartSteps = getOnboardingSteps().filter(s => s.type === "chartType");
     const chartTypes = chartSteps.map(s => session.design.selectedChartTypes[s.index]);
@@ -330,7 +329,7 @@ function renderSampling1WithChartTypes(panel1) {
         c.width = Math.round(displayW * dpr);
         c.height = Math.round(thumbH * dpr);
         c.style.cssText = `width:${displayW}px;height:${thumbH}px;background:#ffffff;border-radius:4px`;
-        renderChart(c.getContext("2d"), c, chartType, panel, mn, mx, {violinScale: 80, ...opts}, "vertical", "density random");
+        renderChart(c.getContext("2d"), c, chartType, panel, mn, mx, {violinScale: 70, ...opts}, "vertical", "density random");
         const labelEl = document.createElement("div");
         labelEl.textContent = label;
         labelEl.style.cssText = "font-size:22px;text-align:center;line-height:1.2";
@@ -346,12 +345,12 @@ function renderSampling1WithChartTypes(panel1) {
     }
 }
 
-function renderFourGroupsRow(groups, chartType, labels, mn, mx, chartOpts = {}) {
+function renderFourGroupsRow(groups, chartType, labels, mn, mx, chartOpts = {}, aspectRatio = 3.2, sidePadding = 80) {
     const dpr = Math.min(window.devicePixelRatio || 1, 1);
-    const containerW = Math.min(window.innerWidth - 48, 720);
+    const containerW = Math.min(window.innerWidth - 48, 720) - sidePadding;
     const gapPx = 3 * 6;
-    const unitPx = Math.floor((containerW - gapPx) / 5);
-    const thumbH = Math.round(unitPx * 3.2);
+    const unitPx = Math.floor((containerW - gapPx) / 4) - 30;
+    const thumbH = Math.round(unitPx * aspectRatio);
 
     UI.onboardingThumbnails.querySelectorAll(".onboardingThumb").forEach(el => el.style.display = "none");
     UI.onboardingThumbnails.querySelectorAll(".samplingThumb").forEach(el => el.remove());
@@ -377,26 +376,6 @@ function renderFourGroupsRow(groups, chartType, labels, mn, mx, chartOpts = {}) 
     });
 }
 
-function renderChartTypeCanvas(ct) {
-    const c = UI.onboardingCanvas;
-    const horiz = currentOrientation() === "horizontal";
-    c.width = horiz ? HEIGHT_2_UP : WIDTH_2_UP;
-    c.height = horiz ? WIDTH_2_UP : HEIGHT_2_UP;
-    c.style.maxHeight = onboardingCanvasMaxHeight() + "px";
-    c.style.maxWidth = "100%";
-    c.style.width = "auto";
-    c.style.display = "block";
-    const panel = buildChartTypeExamplePanel(ct.type);
-    let mn = Infinity, mx = -Infinity;
-    for (const g of panel.groups) {
-        if (g[0] < mn) mn = g[0];
-        if (g[g.length - 1] > mx) mx = g[g.length - 1];
-    }
-    const span = (mx - mn) || 1;
-    renderChart(c.getContext("2d"), c, ct.type, panel,
-        mn - span * 0.12, mx + span * 0.12,
-        {violinScale: 7, ...getPlainCatalogOptions(ct)}, currentOrientation(), session.design.jitter);
-}
 
 // Look up the live catalog variant so explanation functions survive localStorage round-trips.
 function getLiveCatalogOptions(ct) {
@@ -450,11 +429,11 @@ function renderOnboardingStep() {
     UI.onboardingCanvasArea.style.justifyContent = step.type === "chartTypeIntro" ? "center" : "";
 
     if (step.type === "sampling1") {
-        UI.onboardingTitle.textContent = "Understanding Sampling";
+        UI.onboardingTitle.textContent = "Sources and Samples";
         UI.onboardingText.innerHTML =
             `<p>The charts you'll be comparing are each made from
-            <strong>50 data values sampled from a larger source</strong>.</p>
-            <p>Below is one source (500 values) and one random sample (50 values) shown in each of the chart types you'll see.</p>`;
+            <strong>50 data values</strong> sampled from a larger source, which will not be shown.</p>
+            <p>Below, one source (500 values) is shown alongside the same random sample rendered in each of the chart types you'll see.</p>`;
         const {panel1} = getOnboardingPanels();
         renderSampling1WithChartTypes(panel1);
         UI.onboardingThumbnails.style.display = "flex";
@@ -478,44 +457,46 @@ function renderOnboardingStep() {
             UI.onboardingTitle.textContent = same ? "Same Source" : "Different Sources";
             UI.onboardingText.innerHTML = same
                 ? `<p>A source can produce many different samples. Below are four identical views of the same source (500 values).</p>`
-                : `<p>Different sources produce different samples. Below are four different sources (500 values each) — they differ in location, spread, or shape.</p>`;
+                : `<p>You've seen how the same source looks across chart types. Now here are four <strong>different</strong> sources — each with a different location, spread, or shape.</p>`;
             const groups = same ? [sameSrc, sameSrc, sameSrc, sameSrc] : diffSrcs;
             const labels = same ? ["Source","Source","Source","Source"] : ["A","B","C","D"];
-            renderFourGroupsRow(groups, "dot", labels, mn, mx, {violinScale: 50});
+            renderFourGroupsRow(groups, "dot", labels, mn, mx, {violinScale: 50}, 3.2, 20);
+            UI.onboardingThumbnails.style.marginTop = "28px";
         }
         else {
             const ct = chartTypes[step.page - 1];
             const ctName = ct.type.charAt(0).toUpperCase() + ct.type.slice(1);
+            const opts = getPlainCatalogOptions(ct);
             UI.onboardingTitle.textContent = same ? "Same Source, Similar Samples" : "Different Sources, Different Samples";
             UI.onboardingText.innerHTML = same
                 ? `<p>Four random samples from the same source, shown as <strong>${ctName}</strong> charts. They look similar but not identical.</p>`
-                : `<p>One sample from each of the four sources, shown as <strong>${ctName}</strong> charts. Samples from different sources look different.</p>`;
+                : `<p>One sample from each source, shown as <strong>${ctName}</strong> charts. Notice how A, B, C, D look more distinct than the same-source samples on the previous pages.</p>`;
             const groups = same ? sameSamples : diffSamples;
-            const labels = same ? ["A","B","C","D"] : ["A","B","C","D"];
-            renderFourGroupsRow(groups, ct.type, labels, mn, mx, {violinScale: 4, ...getPlainCatalogOptions(ct)});
+            renderFourGroupsRow(groups, ct.type, ["A","B","C","D"], mn, mx, {violinScale: 4, ...opts}, 3.2, 20);
+            UI.onboardingChartLabel.textContent = opts.description;
+            UI.onboardingThumbnails.style.marginTop = "28px";
         }
-    }
-    else if (step.type === "chartTypeIntro") {
-        const n = new Set(session.design.selectedChartTypes.map(ct => ct.type)).size;
-        UI.onboardingTitle.textContent = "Chart Types";
-        UI.onboardingText.innerHTML =
-            `<p>Over the course of the study you'll see <strong>${n} main chart ${n === 1 ? "type" : "types"}</strong>,
-            briefly explained on the following pages.
-            Some charts will show a combination of elements from different chart types, such as overlaid dots.
-            </p><p>Each page will include a short summary of the chart details above the trial pair.</p>`;
-        UI.onboardingThumbnails.style.display = "flex";
-        renderChartTypeThumbs(UI.onboardingThumbnails.querySelectorAll(".onboardingThumb"));
     }
     else if (step.type === "chartType") {
         const ct = session.design.selectedChartTypes[step.index];
         const opts = getPlainCatalogOptions(ct);
         UI.onboardingTitle.textContent = `How to read: ${opts.titleText ?? opts.description}`;
         const expl = typeof opts.explanation === "function" ? opts.explanation() : (opts.explanation ?? "");
-        UI.onboardingText.innerHTML =
-            `<p>${expl}</p>
-            <p>Below is one example pair where both samples come from the same source.</p>`;
-        renderChartTypeCanvas(ct);
+        const chartSteps = getOnboardingSteps().filter(s => s.type === "chartType");
+        const isFirstChartType = chartSteps[0]?.index === step.index;
+        const samplingNote = isFirstChartType
+            ? "Below are four samples from the same source — they look similar but not identical."
+            : "Same source, four samples — similar but not identical.";
+        UI.onboardingText.innerHTML = `<p>${expl}</p><p>${samplingNote}</p>`;
+        const {sameSamples} = getOnboardingPanels();
+        let mn = Math.min(...sameSamples.map(g => g[0]));
+        let mx = Math.max(...sameSamples.map(g => g[g.length - 1]));
+        const span = (mx - mn) || 1;
+        renderFourGroupsRow(sameSamples, ct.type, ["A","B","C","D"],
+            mn - span * 0.08, mx + span * 0.08,
+            {violinScale: 7, ...opts});
         UI.onboardingChartLabel.textContent = opts.description;
+        UI.onboardingThumbnails.style.marginTop = "28px";
     }
     else if (step.type === "responseScale") {
         const total = session.design.conditions.length;

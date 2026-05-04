@@ -104,10 +104,10 @@ export function yourTaskHTML(total) {
         return `<tr><td><strong>${cellLabel}</strong></td><td>${r.description}</td></tr>`;
     }).join("");
     const intro = QUESTION_FRAMING === "confidence"
-        ? `<p>You will see <strong>${total} pairs</strong> of charts. Recall that each chart
-            represents 50 values randomly sampled a larger source. For each pair, indicate whether
-            you think the two samples come from the <strong>same source</strong> or
-            <strong>different sources</strong>.</p>`
+        ? `<p>You will see <strong>${total} pairs</strong> of charts. Each chart represents 50 values
+            randomly sampled from a larger source, not shown. A short description of the chart type will appear
+            above each pair. For each pair, indicate whether you think the two samples come from the
+            <strong>same source</strong> or <strong>different sources</strong>.</p>`
         : QUESTION_FRAMING === "surprise"
         ? `<p>You will see <strong>${total} pairs</strong> of charts. Recall that each chart
             represents 50 values sampled from some source. For each pair, rate how surprising
