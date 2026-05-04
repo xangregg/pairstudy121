@@ -105,7 +105,7 @@ export function yourTaskHTML(total) {
     }).join("");
     const intro = QUESTION_FRAMING === "confidence"
         ? `<p>You will see <strong>${total} pairs</strong> of charts. Recall that each chart
-            represents 50 values sampled from some source. For each pair, indicate whether
+            represents 50 values randomly sampled a larger source. For each pair, indicate whether
             you think the two samples come from the <strong>same source</strong> or
             <strong>different sources</strong>.</p>`
         : QUESTION_FRAMING === "surprise"

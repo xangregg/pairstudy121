@@ -12,10 +12,10 @@ function splitGroups(panel) {
 export function beginPlot(ctx, canvas, yMin, yMax, nGroups = 2, opts = {}) {
     const W = canvas.width, H = canvas.height;
     // No left padding needed for y-axis labels; small uniform margin all around.
-    const padL = opts.forThumbnail ? -2 : 14;
-    const padR = opts.forThumbnail ? -2 : 14;
-    const padT = opts.forThumbnail ? 0 : 16;
-    const padB = opts.forThumbnail ? 12 : opts.padB ?? 40;
+    const padL = opts.padL ?? (opts.forThumbnail ? -2 : 14);
+    const padR = opts.padR ?? (opts.forThumbnail ? -2 : 14);
+    const padT = opts.padT ?? (opts.forThumbnail ? 0 : 16);
+    const padB = opts.padB ?? (opts.forThumbnail ? 12 : 40);
     const innerW = W - padL - padR;
     const innerH = H - padT - padB;
 

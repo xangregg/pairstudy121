@@ -6,7 +6,7 @@ import {mulberry32, hashStringToUint32, randomNormal, normalToSkewNormal} from "
 import {N_PER_GROUP, STORAGE_KEY, RATING_DELAY_MS, DIST_REPS, DIST_REPS_TESTING} from "./config.js";
 import {buildCatalog} from "./catalog.js";
 import {loadOrCreateSession, postResponse, postSession, postComment} from "./database.js";
-import {BG_QUESTIONS, yourTaskHTML, backgroundHTML, RATING_SCALE, TRIAL_QUESTION} from "./question.js";
+import {yourTaskHTML, RATING_SCALE, TRIAL_QUESTION} from "./question.js";
 import {generateBasePanel, finalizePanel, computeDataSeeds} from "./data.js";
 import {applySignal, makeDesign} from "./design.js";
 
@@ -194,15 +194,16 @@ function getOnboardingSteps() {
         .sort((a, b) => typeFirstTrial.get(a) - typeFirstTrial.get(b));
 
     const steps = [];
-    if (!session.skipIntro) {
-        steps.push({type: "background"});
-        steps.push({type: "sampling1"}, {type: "sampling2"}, {type: "sampling3"});
-    }
     steps.push(
         {type: "chartTypeIntro"},
         ...sortedTypes.map(chartType => ({type: "chartType", index: typeToFirstIdx.get(chartType)})),
-        {type: "responseScale"},
     );
+    if (!session.skipIntro) {
+        steps.push({type: "sampling1"});
+        for (let page = 0; page <= 4; page++) steps.push({type: "sameSources", page});
+        for (let page = 0; page <= 4; page++) steps.push({type: "diffSources",  page});
+    }
+    steps.push({type: "responseScale"});
     return steps;
 }
 
@@ -212,34 +213,43 @@ let _onboardingPanels = null;
 function getOnboardingPanels() {
     if (_onboardingPanels)
         return _onboardingPanels;
-    const rng = mulberry32(0x4F4E4243); // fixed seed chosen so the similar/different training are true
+    const rng = mulberry32(355000);
     const N_SRC = 500;
+    const sort = arr => arr.slice().sort((a, b) => a - b);
 
-    // Page 2: one source, three 50-point samples from the same distribution
-    const src1 = Array.from({length: N_SRC}, () => randomNormal(rng));
-    const s2a = Array.from({length: N_PER_GROUP}, () => randomNormal(rng));
-    const s2b = Array.from({length: N_PER_GROUP}, () => randomNormal(rng));
-    const s2c = Array.from({length: N_PER_GROUP}, () => randomNormal(rng));
+    // Same-source data: one source, four samples
+    const sameSrc = Array.from({length: N_SRC}, () => randomNormal(rng));
+    const sameSamples = [0,1,2,3].map(() => Array.from({length: N_PER_GROUP}, () => randomNormal(rng)));
 
-    // Page 3: two different sources (source 2: mean +1.2, scale 0.65), one sample each
-    const src3a = Array.from({length: N_SRC}, () => randomNormal(rng));
-    const s3a = Array.from({length: N_PER_GROUP}, () => randomNormal(rng));
-    const src3b = Array.from({length: N_SRC}, () => randomNormal(rng) * 0.65 + 0.2);
-    const s3b = Array.from({length: N_PER_GROUP}, () => randomNormal(rng) * 0.65 + 0.2);
+    function makeSample(rng, n, signal) {
+        const ys = Array.from({length: n * 2}, () => randomNormal(rng));
+        const groups = Array.from({length: n * 2}, (_, i) => i < n ? 0 : 1);
+        const outPanel = applySignal({y: ys, group: groups}, "normal", signal, rng, 0);
+        return outPanel.y.slice(0, n);
+    }
 
+    // Different-source data: four sources with distinct parameters, one sample each
+    const diffParams = [
+    {type: "location", delta_sd: 1.3},
+    {type: "spread", spread_factor: 0.6},
+    {type: "skew", base:  1.70},
+    {type: "bimodal", separation: 4.0}];
+    const diffSrcs    = diffParams.map((signal) => makeSample(rng, N_SRC, signal));
+    const diffSamples = diffParams.map((signal) => makeSample(rng, N_PER_GROUP, signal));
+
+    // panel1: source + first sample, used by sampling1 page
     const panel1 = finalizePanel(
-        [...src1, ...s2a],
-        [...src1.map(() => 0), ...s2a.map(() => 1)]
+        [...sameSrc, ...sameSamples[0]],
+        [...sameSrc.map(() => 0), ...sameSamples[0].map(() => 1)]
     );
-    const panel2 = finalizePanel(
-        [...src1, ...s2a, ...s2b, ...s2c],
-        [...src1.map(() => 0), ...s2a.map(() => 1), ...s2b.map(() => 2), ...s2c.map(() => 3)]
-    );
-    const panel3 = finalizePanel(
-        [...src3a, ...src3b, ...s3a, ...s3b],
-        [...src3a.map(() => 0), ...src3b.map(() => 1), ...s3a.map(() => 2), ...s3b.map(() => 3)]
-    );
-    _onboardingPanels = {panel1, panel2, panel3};
+
+    _onboardingPanels = {
+        panel1,
+        sameSrc:     sort(sameSrc),
+        sameSamples: sameSamples.map(sort),
+        diffSrcs:    diffSrcs.map(sort),
+        diffSamples: diffSamples.map(sort),
+    };
     return _onboardingPanels;
 }
 
@@ -269,25 +279,102 @@ function onboardingCanvasMaxHeight() {
     return Math.max(MIN_ONBOARDING_CANVAS_HEIGHT, window.innerHeight - ONBOARDING_CHROME_HEIGHT);
 }
 
-function renderSamplingCanvas(panel, labels) {
-    const c = UI.onboardingCanvas;
-    const horiz = currentOrientation() === "horizontal";
-    c.width = horiz ? HEIGHT_4_UP_TRAINING : WIDTH_4_UP_TRAINING;
-    c.height = horiz ? WIDTH_4_UP_TRAINING : HEIGHT_4_UP_TRAINING;
-    c.style.maxHeight = onboardingCanvasMaxHeight() + "px";
-    c.style.maxWidth = "100%";
-    c.style.width = "auto";
-    c.style.display = "block";
-    let mn = Infinity, mx = -Infinity;
-    for (const g of panel.groups) {
-        if (g[0] < mn) mn = g[0];
-        if (g[g.length - 1] > mx) mx = g[g.length - 1];
-    }
+
+function renderSampling1WithChartTypes(panel1) {
+    const sourceGroup = panel1.groups[0];
+    const sampleGroup = panel1.groups[1];
+    let mn = Math.min(sourceGroup[0], sampleGroup[0]);
+    let mx = Math.max(sourceGroup[sourceGroup.length - 1], sampleGroup[sampleGroup.length - 1]);
     const span = (mx - mn) || 1;
-    renderChart(c.getContext("2d"), c, "dot", panel,
-        mn - span * 0.08, mx + span * 0.08,
-        {groupLabels: labels, showMedian: false, violinScale: 120, padB: 80},
-        currentOrientation(), "density random");
+    mn -= span * 0.08;
+    mx += span * 0.08;
+
+    const chartSteps = getOnboardingSteps().filter(s => s.type === "chartType");
+    const chartTypes = chartSteps.map(s => session.design.selectedChartTypes[s.index]);
+
+    const noGroupLabel = {groupLabels: [""], padB: 0, padL: 6, padR: 6};
+    const items = [
+        {label: "Source", flex: 1.2, chartType: "dot", panel: {groups: [sourceGroup]}, opts: {showMedian: false, forThumbnail: true, ...noGroupLabel}},
+        ...chartTypes.map(ct => ({
+            label: ct.type.charAt(0).toUpperCase() + ct.type.slice(1),
+            flex: 0.8,
+            chartType: ct.type,
+            panel: {groups: [sampleGroup]},
+            opts: {showMedian: false, violinScale: 7, forThumbnail: true, ...getPlainCatalogOptions(ct), ...noGroupLabel},
+        })),
+    ];
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 1);
+    const containerW = Math.min(window.innerWidth - 48, 720);
+    const SPACER_PX = 28;
+    const gapPx = (items.length - 1) * 6 + SPACER_PX;
+    const unitPx = Math.floor((containerW - gapPx) / 5) - 4; // fixed 5-column reference
+    const thumbH = Math.round(unitPx * 3.6);
+
+    UI.onboardingThumbnails.querySelectorAll(".onboardingThumb").forEach(el => el.style.display = "none");
+    UI.onboardingThumbnails.querySelectorAll(".samplingThumb").forEach(el => el.remove());
+    UI.onboardingThumbnails.style.cssText = "display:flex;gap:6px;justify-content:center;align-items:flex-start;margin:-30px 0";
+
+    for (const {label, flex, chartType, panel, opts} of items) {
+        if (label !== "Source" && !UI.onboardingThumbnails.querySelector("[data-spacer]")) {
+            const spacer = document.createElement("div");
+            spacer.dataset.spacer = "1";
+            spacer.style.cssText = `width:${SPACER_PX}px;flex-shrink:0`;
+            UI.onboardingThumbnails.appendChild(spacer);
+        }
+        const displayW = flex * unitPx;
+        const wrapper = document.createElement("div");
+        wrapper.className = "samplingThumb";
+        wrapper.style.cssText = `display:flex;flex-direction:column;align-items:center;gap:1px;flex:${flex};min-width:0`;
+        const c = document.createElement("canvas");
+        c.width = Math.round(displayW * dpr);
+        c.height = Math.round(thumbH * dpr);
+        c.style.cssText = `width:${displayW}px;height:${thumbH}px;background:#ffffff;border-radius:4px`;
+        renderChart(c.getContext("2d"), c, chartType, panel, mn, mx, {violinScale: 80, ...opts}, "vertical", "density random");
+        const labelEl = document.createElement("div");
+        labelEl.textContent = label;
+        labelEl.style.cssText = "font-size:22px;text-align:center;line-height:1.2";
+        wrapper.appendChild(c);
+        wrapper.appendChild(labelEl);
+        // if (label !== "Source") {
+        //     const sublabelEl = document.createElement("div");
+        //     sublabelEl.textContent = "Sample";
+        //     sublabelEl.style.cssText = "font-size:22px;text-align:center;line-height:1.2";
+        //     wrapper.appendChild(sublabelEl);
+        // }
+        UI.onboardingThumbnails.appendChild(wrapper);
+    }
+}
+
+function renderFourGroupsRow(groups, chartType, labels, mn, mx, chartOpts = {}) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 1);
+    const containerW = Math.min(window.innerWidth - 48, 720);
+    const gapPx = 3 * 6;
+    const unitPx = Math.floor((containerW - gapPx) / 5);
+    const thumbH = Math.round(unitPx * 3.2);
+
+    UI.onboardingThumbnails.querySelectorAll(".onboardingThumb").forEach(el => el.style.display = "none");
+    UI.onboardingThumbnails.querySelectorAll(".samplingThumb").forEach(el => el.remove());
+    UI.onboardingThumbnails.style.cssText = "display:flex;gap:6px;justify-content:center;align-items:flex-start;margin:-20px 0";
+    UI.onboardingThumbnails.style.display = "flex";
+
+    groups.forEach((group, i) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "samplingThumb";
+        wrapper.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:0";
+        const c = document.createElement("canvas");
+        c.width = Math.round(unitPx * dpr);
+        c.height = Math.round(thumbH * dpr);
+        c.style.cssText = `width:${unitPx}px;height:${thumbH}px;background:#ffffff;border-radius:4px`;
+        const opts = {showMedian: false, forThumbnail: true, padL: 6, padR: 6, padB: 0, groupLabels: [""], ...chartOpts};
+        renderChart(c.getContext("2d"), c, chartType, {groups: [group]}, mn, mx, opts, "vertical", "density random");
+        const labelEl = document.createElement("div");
+        labelEl.textContent = labels[i];
+        labelEl.style.cssText = "font-size:18px;text-align:center";
+        wrapper.appendChild(c);
+        wrapper.appendChild(labelEl);
+        UI.onboardingThumbnails.appendChild(wrapper);
+    });
 }
 
 function renderChartTypeCanvas(ct) {
@@ -343,13 +430,15 @@ function renderOnboardingStep() {
     UI.onboardingChartLabel.textContent = "";
     UI.onboardingCanvas.style.display = "none";
     UI.onboardingThumbnails.style.display = "none";
+    UI.onboardingThumbnails.querySelectorAll(".samplingThumb").forEach(el => el.remove());
+    UI.onboardingThumbnails.querySelectorAll(".onboardingThumb").forEach(el => el.style.display = "");
     UI.onboardingContinueBtn.disabled = false;
     UI.onboardingBackBtn.style.visibility = session.onboardingStep > 0 ? "visible" : "hidden";
 
     // Reserve fixed heights within each section so the canvas and Continue button
     // stay at the same vertical position across pages within a section.
     const isChartTypeSection = step.type === "chartTypeIntro" || step.type === "chartType";
-    const isSamplingSection = step.type === "sampling1" || step.type === "sampling2" || step.type === "sampling3";
+    const isSamplingSection = step.type === "sampling1" || step.type === "sameSources" || step.type === "diffSources";
     const horiz = currentOrientation() === "horizontal";
     UI.onboardingText.style.minHeight = isChartTypeSection ? "150px" : isSamplingSection ? "150px" : "";
     const naturalCanvasH = isChartTypeSection ? (horiz ? WIDTH_2_UP : HEIGHT_2_UP) - (step.type === "chartTypeIntro" ? 10 : 0)
@@ -365,31 +454,46 @@ function renderOnboardingStep() {
         UI.onboardingText.innerHTML =
             `<p>The charts you'll be comparing are each made from
             <strong>50 data values sampled from a larger source</strong>.</p>
-            <p>Below is one source (500 values) and one random 50-value sample from it.</p>`;
+            <p>Below is one source (500 values) and one random sample (50 values) shown in each of the chart types you'll see.</p>`;
         const {panel1} = getOnboardingPanels();
-        renderSamplingCanvas(panel1, ["Source", "Sample"]);
+        renderSampling1WithChartTypes(panel1);
+        UI.onboardingThumbnails.style.display = "flex";
 
     }
-    else if (step.type === "sampling2") {
-        UI.onboardingTitle.textContent = "Same Source, Similar Samples";
-        UI.onboardingText.innerHTML =
-            `<p>Two samples from the same source will look similar but not identical.</p>
-            <p>Below is one source and three random 50-value samples from it (A, B, C).
-            The samples resemble the source and each other, but each looks slightly different.</p>`;
-        const {panel2} = getOnboardingPanels();
-        renderSamplingCanvas(panel2, ["Source", "A", "B", "C"]);
+    else if (step.type === "sameSources" || step.type === "diffSources") {
+        // seed
+        const same = step.type === "sameSources";
+        const {sameSrc, sameSamples, diffSrcs, diffSamples} = getOnboardingPanels();
+        const chartSteps = getOnboardingSteps().filter(s => s.type === "chartType");
+        const chartTypes = chartSteps.map(s => session.design.selectedChartTypes[s.index]);
 
-    }
-    else if (step.type === "sampling3") {
-        UI.onboardingTitle.textContent = "Different Sources, Different Samples";
-        UI.onboardingText.innerHTML =
-            `<p>Below are two different sources, each with one random sample.
-            Sources can differ in <strong>location</strong>, <strong>spread</strong>, or <strong>shape</strong>.
-            Source 2 has a slightly offset central location and less spread.
-            Notice how samples A and B also look different from each other.</p>`;
-        const {panel3} = getOnboardingPanels();
-        renderSamplingCanvas(panel3, ["Source 1", "Source 2", "A", "B"]);
+        const allData = same ? [sameSrc, ...sameSamples] : [...diffSrcs, ...diffSamples];
+        let mn = Math.min(...allData.map(g => g[0]));
+        let mx = Math.max(...allData.map(g => g[g.length - 1]));
+        const span = (mx - mn) || 1;
+        mn -= span * 0.08;
+        mx += span * 0.08;
 
+        if (step.page === 0) {
+            UI.onboardingTitle.textContent = same ? "Same Source" : "Different Sources";
+            UI.onboardingText.innerHTML = same
+                ? `<p>A source can produce many different samples. Below are four identical views of the same source (500 values).</p>`
+                : `<p>Different sources produce different samples. Below are four different sources (500 values each) — they differ in location, spread, or shape.</p>`;
+            const groups = same ? [sameSrc, sameSrc, sameSrc, sameSrc] : diffSrcs;
+            const labels = same ? ["Source","Source","Source","Source"] : ["A","B","C","D"];
+            renderFourGroupsRow(groups, "dot", labels, mn, mx, {violinScale: 50});
+        }
+        else {
+            const ct = chartTypes[step.page - 1];
+            const ctName = ct.type.charAt(0).toUpperCase() + ct.type.slice(1);
+            UI.onboardingTitle.textContent = same ? "Same Source, Similar Samples" : "Different Sources, Different Samples";
+            UI.onboardingText.innerHTML = same
+                ? `<p>Four random samples from the same source, shown as <strong>${ctName}</strong> charts. They look similar but not identical.</p>`
+                : `<p>One sample from each of the four sources, shown as <strong>${ctName}</strong> charts. Samples from different sources look different.</p>`;
+            const groups = same ? sameSamples : diffSamples;
+            const labels = same ? ["A","B","C","D"] : ["A","B","C","D"];
+            renderFourGroupsRow(groups, ct.type, labels, mn, mx, {violinScale: 4, ...getPlainCatalogOptions(ct)});
+        }
     }
     else if (step.type === "chartTypeIntro") {
         const n = new Set(session.design.selectedChartTypes.map(ct => ct.type)).size;
@@ -418,37 +522,6 @@ function renderOnboardingStep() {
         UI.onboardingTitle.textContent = "Your Task";
         UI.onboardingText.innerHTML = yourTaskHTML(total);
     }
-    else if (step.type === "background") {
-        UI.onboardingTitle.textContent = "About You";
-        UI.onboardingText.innerHTML = backgroundHTML();
-        // Restore any previously saved selections
-        const bg = session.background ?? {};
-        for (const [key, val] of Object.entries(bg)) {
-            const btn = UI.onboardingText.querySelector(`.bg-btn[data-key="${key}"][data-value="${val}"]`);
-            if (btn) btn.classList.add("selected");
-        }
-        // Click handlers — save each selection immediately
-        UI.onboardingText.querySelectorAll(".bg-btn").forEach(btn => {
-            btn.addEventListener("click", () => {
-                const {key, value} = btn.dataset;
-                UI.onboardingText.querySelectorAll(`.bg-btn[data-key="${key}"]`)
-                    .forEach(b => b.classList.remove("selected"));
-                btn.classList.add("selected");
-                if (!session.background) session.background = {};
-                session.background[key] = parseInt(value);
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-                updateBgContinueBtn();
-            });
-        });
-        updateBgContinueBtn();
-    }
-}
-
-function updateBgContinueBtn() {
-    if (NOSUBMIT)
-        return; // optional when not submitting
-    const bg = session.background ?? {};
-    UI.onboardingContinueBtn.disabled = !BG_QUESTIONS.every(q => bg[q.key] != null);
 }
 
 function advanceOnboarding() {
