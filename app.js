@@ -2,7 +2,7 @@
 
 import {renderChart} from "./renderers.js";
 import {wassersteinStat, ksStat, spearmanCorrelation, kendallTauB, goodmanKruskalGamma, csvField} from "./utils.js";
-import {mulberry32, hashStringToUint32, randomNormal, normalToSkewNormal} from "./utils.js";
+import {mulberry32, sfc32, hashStringToUint32, randomNormal, normalToSkewNormal} from "./utils.js";
 import {N_PER_GROUP, STORAGE_KEY, RATING_DELAY_MS, DIST_REPS, DIST_REPS_TESTING} from "./config.js";
 import {buildCatalog} from "./catalog.js";
 import {loadOrCreateSession, postResponse, postSession, postComment} from "./database.js";
@@ -212,7 +212,8 @@ let _onboardingPanels = null;
 function getOnboardingPanels() {
     if (_onboardingPanels)
         return _onboardingPanels;
-    const rng = mulberry32(3550091);
+    const rng = mulberry32(35500913);
+    // const rng = sfc32(35500113);
     const N_SRC = 500;
     const sort = arr => arr.slice().sort((a, b) => a - b);
 
@@ -229,9 +230,9 @@ function getOnboardingPanels() {
 
     // Different-source data: four sources with distinct parameters, one sample each
     const diffParams = [
-    {type: "location", delta_sd: 1.3},
-    {type: "spread", spread_factor: 0.75},
-    {type: "skew", base:  1.70},
+    {type: "location", delta_sd: 1.0},
+    {type: "spread", spread_factor: 0.7},
+    {type: "skew", base: 1.8},
     {type: "bimodal", separation: 4.0}];
     const diffSrcs    = diffParams.map((signal) => makeSample(rng, N_SRC, signal));
     const diffSamples = diffParams.map((signal) => makeSample(rng, N_PER_GROUP, signal));
@@ -460,7 +461,7 @@ function renderOnboardingStep() {
                 : `<p>You've seen how the same source looks across chart types. Now here are four <strong>different</strong> sources — each with a different location, spread, or shape.</p>`;
             const groups = same ? [sameSrc, sameSrc, sameSrc, sameSrc] : diffSrcs;
             const labels = same ? ["Source","Source","Source","Source"] : ["A","B","C","D"];
-            renderFourGroupsRow(groups, "dot", labels, mn, mx, {violinScale: 50}, 3.2, 20);
+            renderFourGroupsRow(groups, "dot", labels, mn, mx, {violinScale: 40}, 3.2, 20);
             UI.onboardingThumbnails.style.marginTop = "28px";
         }
         else {
@@ -663,10 +664,10 @@ const W_THRESHOLDS = [0.2, 0.28, 0.38]; // boundaries between buckets 1/2, 2/3, 
 // Per-signal-type multipliers applied to Wasserstein before bucketing.
 // Boost types where Wasserstein underestimates statistical difference.
 const W_MULTIPLIERS = {
-    location: 0.9,
+    location: 0.85,
     spread:   1.0,
-    skew:     1.3,
-    bimodal:  1.2,
+    skew:     1.5,
+    bimodal:  1.25,
     outlier:  1.0,
 };
 

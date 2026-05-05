@@ -12,6 +12,20 @@ export function mulberry32(a) {
     };
 }
 
+export function sfc32(seed) {
+    let a = seed >>> 0, b = seed ^ 0xDEADBEEF, c = seed ^ 0xCAFEF00D, d = 0x12345678;
+    return () => {
+        a |= 0; b |= 0; c |= 0; d |= 0;
+        const t = (a + b | 0) + d | 0;
+        d = d + 1 | 0;
+        a = b ^ b >>> 9;
+        b = c + (c << 3) | 0;
+        c = c << 21 | c >>> 11;
+        c = c + t | 0;
+        return (t >>> 0) / 4294967296;
+    };
+}
+
 // FNV-1a 32-bit hash. Offset basis: 2166136261; prime: 16777619.
 export function hashStringToUint32(str) {
     let h = 2166136261 >>> 0;
