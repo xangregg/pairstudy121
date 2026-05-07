@@ -17,27 +17,27 @@ export const JITTER_CATALOG = ["random", "wilkinson", "beeswarm", "density rando
 
 // Number of repetitions (reps × chart type categories = baseline total trials) per distribution.
 // Set lognormal and binomial to 0 to exclude them from the current study.
-export const DIST_REPS          = {normal: 20, lognormal: 0, binomial: 0};
+export const DIST_REPS          = {normal: 15, lognormal: 0, binomial: 0};
 export const DIST_REPS_TESTING  = {normal:  1, lognormal: 0, binomial: 0};
 
 // Trial allocation constraints across chart type categories and variants.
 // Each category receives at least MIN_CATEGORY_TRIALS; each variant receives at most
 // MAX_VARIANT_TRIALS. Remaining trials (after minimums) are distributed proportionally
 // to variant count, so categories with more variants receive more trials.
-export const MIN_CATEGORY_TRIALS = 20;
-export const MAX_VARIANT_TRIALS  = 20;
+export const MIN_CATEGORY_TRIALS = 15;
+export const MAX_VARIANT_TRIALS  = 15;
 
 // Number of data seeds to show twice with a different chart type category,
 // creating within-subject paired comparisons for chart-type analysis.
 // Each duplicate adds one trial to the total. Set to 0 to disable.
-export const N_DUPLICATE_SEEDS = 20;
+export const N_DUPLICATE_SEEDS = 0;
 
 // Seed screening thresholds for the DATA_SEEDS pool.
 // extremes: max allowed difference between groups in their min or max value,
 //           as a fraction of the combined data range.
 export const SEED_THRESHOLDS = {
-    normal:    {extremes: 0.30}, // ~3 rejections per 100 candidates
-    lognormal: {extremes: 0.40}, // ~13 rejections per 100 candidates
+    normal:    {extremes: 0.25, skew: 0.7}, // skew threshold rejects pre-skewed null samples
+    lognormal: {extremes: 0.40},
 };
 
 // Cohen's d threshold for the mean-balance check; ~38 additional rejections per 100 candidates.

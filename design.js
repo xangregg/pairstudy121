@@ -70,13 +70,13 @@ export function applySignal(panel, dist, signal, rng, signalGroup = 1) {
         for (let i = 0; i < panel.y.length; i++) {
             if (panel.group[i] !== signalGroup) continue;
             indices.push(i);
-            transformed.push(sign * Math.pow(absS, panel.y[i]));
+            transformed.push(sign * (Math.pow(absS, panel.y[i]) - 1));
         }
         const n = transformed.length;
         const mean = transformed.reduce((a, b) => a + b, 0) / n;
         const sd = Math.sqrt(transformed.reduce((a, v) => a + (v - mean) ** 2, 0) / n);
         indices.forEach((idx, i) => {
-            panel.y[idx] = sd > 0 ? (transformed[i] - mean) / sd : 0;
+            panel.y[idx] = /*transformed[i];// */sd > 0 ? (transformed[i] - mean) / sd : 0;
         });
         return panel;
     }
@@ -178,17 +178,17 @@ export function makeDesign({rng, catalog, nChartTypes, nVariantTypes, distReps, 
             {type: "spread", spread_factor: 1.2, level: "weak",     weight: 3},
             {type: "spread", spread_factor: 1.4, level: "moderate", weight: 3},
             {type: "spread", spread_factor: 1.6, level: "moderate", weight: 5},
-            {type: "spread", spread_factor: 1.8, level: "strong",   weight: 5},
+            {type: "spread", spread_factor: 1.8, level: "strong",   weight: 2},
             {type: "skew", base:  2.50, level: "strong",    weight: 0},
-            {type: "skew", base:  2.25, level: "strong",    weight: 1},
-            {type: "skew", base:  2.00, level: "moderate",  weight: 2},
-            {type: "skew", base:  1.75, level: "weak",      weight: 1},
-            {type: "skew", base:  1.50, level: "weak",      weight: 1},
-            {type: "skew", base: -1.50, level: "weak",      weight: 1},
-            {type: "skew", base: -1.75, level: "weak",      weight: 1},
-            {type: "skew", base: -2.00, level: "moderate",  weight: 2},
-            {type: "skew", base: -2.25, level: "strong",    weight: 1},
-            {type: "skew", base: -2.50, level: "strong",    weight: 0},
+            // {type: "skew", base:  2.25, level: "strong",    weight: 1},
+            // {type: "skew", base:  2.00, level: "moderate",  weight: 2},
+            // {type: "skew", base:  1.75, level: "weak",      weight: 1},
+            // {type: "skew", base:  1.50, level: "weak",      weight: 1},
+            // {type: "skew", base: -1.50, level: "weak",      weight: 1},
+            // {type: "skew", base: -1.75, level: "weak",      weight: 1},
+            // {type: "skew", base: -2.00, level: "moderate",  weight: 2},
+            // {type: "skew", base: -2.25, level: "strong",    weight: 1},
+            // {type: "skew", base: -2.50, level: "strong",    weight: 0},
             {type: "bimodal", separation: 5.0, level: "strong",   weight: 2},
             {type: "bimodal", separation: 4.0, level: "strong",   weight: 3},
             {type: "bimodal", separation: 3.0, level: "moderate", weight: 3},

@@ -66,11 +66,20 @@ export function finalizePanel(y, group) {
     return {groups};
 }
 
+function skewness(arr) {
+    const n = arr.length;
+    const mean = arr.reduce((s, v) => s + v, 0) / n;
+    const m2 = arr.reduce((s, v) => s + (v - mean) ** 2, 0) / n;
+    const m3 = arr.reduce((s, v) => s + (v - mean) ** 3, 0) / n;
+    return m2 > 0 ? m3 / m2 ** 1.5 : 0;
+}
+
 // Auto-screen candidate seeds: reject if groups differ too much under null signal.
 // extremes: max/min difference as a fraction of combined range (range-based; captures tail placement).
 // meanD: Cohen's d for mean difference (distribution-agnostic; ~equivalent to Welch's t > 1.25, p < 0.21).
+// skew: max absolute skewness of either group — prevents pre-skewed nulls from masking the skew signal.
 export function isGoodSeed(seed, distReps) {
-    for (const [dist, {extremes}] of Object.entries(SEED_THRESHOLDS)) {
+    for (const [dist, {extremes, skew}] of Object.entries(SEED_THRESHOLDS)) {
         if (distReps[dist] === 0)
             continue;
         const panel = generateBasePanel(dist, seed, {type: "null"}, 0);
@@ -89,6 +98,8 @@ export function isGoodSeed(seed, distReps) {
         const varB = B.reduce((s, v) => s + (v - meanB) ** 2, 0) / (B.length - 1);
         const pooledSD = Math.sqrt((varA + varB) / 2) || 1;
         if (Math.abs(meanA - meanB) / pooledSD > MEAN_D_THRESHOLD)
+            return false;
+        if (skew != null && (Math.abs(skewness(A)) > skew || Math.abs(skewness(B)) > skew))
             return false;
     }
     return true;

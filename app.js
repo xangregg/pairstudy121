@@ -109,7 +109,7 @@ let trialStartPerf = null;
 
 /** ---------- Base data ---------- **/
 
-const DATA_SEEDS = computeDataSeeds(distReps, !!SEEDREVIEW_DIST);
+const DATA_SEEDS = computeDataSeeds(distReps, NOSUBMIT);
 
 // Each entry lists display variants for that chart type.
 // At design time, N_CHART_TYPES types are chosen per participant (seeded shuffle),
@@ -231,8 +231,9 @@ function getOnboardingPanels() {
     // Different-source data: four sources with distinct parameters, one sample each
     const diffParams = [
     {type: "location", delta_sd: 1.0},
+        {type: "location", delta_sd: -0.5},
     {type: "spread", spread_factor: 0.7},
-    {type: "skew", base: 1.8},
+    // {type: "skew", base: 1.8},
     {type: "bimodal", separation: 4.0}];
     const diffSrcs    = diffParams.map((signal) => makeSample(rng, N_SRC, signal));
     const diffSamples = diffParams.map((signal) => makeSample(rng, N_PER_GROUP, signal));
