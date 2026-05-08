@@ -2,31 +2,6 @@
 // Background questionnaire structure
 // Trial question and response scale
 
-export const BG_FAM_OPTIONS = [
-    { value: 1, label: "Unfamiliar" },
-    { value: 2, label: "Somewhat" },
-    { value: 3, label: "Very familiar" },
-];
-
-export const BG_SECTIONS = [
-    {
-        heading: "How familiar are you with...",
-        questions: [
-            { key: "vizFrequency",     label: "Bar charts" },
-            { key: "chartFrequency",   label: "Scatter plots" },
-            { key: "boxPlot",          label: "Box plots" },
-            { key: "mean",             label: "Mean" },
-            { key: "sd",               label: "Standard deviation" },
-            { key: "median",           label: "Median" },
-            { key: "quartile",         label: "Quartile" },
-            { key: "linearRegression", label: "Linear regression" },
-        ],
-        options: BG_FAM_OPTIONS,
-    },
-];
-
-export const BG_QUESTIONS = BG_SECTIONS.flatMap(s => s.questions);
-
 // Switch between question framings here.
 // "confidence" — "Do these two samples come from the same source?"
 // "evidence"   — "How much evidence do these charts provide that A and B are genuinely different?"
@@ -120,22 +95,4 @@ export function yourTaskHTML(total) {
             <thead><tr><th>Rating</th><th>Meaning</th></tr></thead>
             <tbody>${rows}</tbody>
         </table>`;
-}
-
-// HTML for the "About You" background questionnaire onboarding step.
-export function backgroundHTML() {
-    return `<p>Before we start, a few quick questions about your prior knowledge.</p>` +
-        BG_SECTIONS.map(sec => `
-        <p class="ob-section-head">${sec.heading}</p>
-        <div class="bg-grid">
-            ${sec.questions.map(q => `
-            <div class="bg-row">
-                <span class="bg-term">${q.label}</span>
-                <div class="bg-options">
-                    ${sec.options.map(o =>
-                        `<button class="bg-btn" data-key="${q.key}" data-value="${o.value}">${o.label}</button>`
-                    ).join("")}
-                </div>
-            </div>`).join("")}
-        </div>`).join("");
 }

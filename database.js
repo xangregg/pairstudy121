@@ -95,7 +95,6 @@ export function postResponse(session, trial, rating, rtMs, finishedAt = null, pa
 }
 
 export function postSession(session, group, noSubmit = false) {
-    const bg = session.background ?? {};
     const row = {
         participant_id: session.participantId,
         started_at: session.startedAtISO,
@@ -103,17 +102,6 @@ export function postSession(session, group, noSubmit = false) {
         prolific_pid:        session.prolificPid        ?? null,
         prolific_study_id:   session.prolificStudyId   ?? null,
         prolific_session_id: session.prolificSessionId ?? null,
-        // background questionnaire — frequency (1=Rarely, 2=Occasionally, 3=Regularly)
-        bg_viz_frequency:   bg.vizFrequency   ?? null,
-        bg_chart_frequency: bg.chartFrequency ?? null,
-        // background questionnaire — familiarity (1=Unfamiliar, 2=Somewhat familiar, 3=Very familiar)
-        bg_mean:         bg.mean         ?? null,
-        bg_sd:           bg.sd           ?? null,
-        bg_median:       bg.median       ?? null,
-        bg_quartile:     bg.quartile     ?? null,
-        bg_box_plot:     bg.boxPlot      ?? null,
-        bg_sampling:     bg.sampling     ?? null,
-        bg_significance: bg.linearRegression ?? null,
         // between-subjects design factors
         orientation: session.design.orientation,
         jitter: session.design.jitter,

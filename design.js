@@ -34,28 +34,15 @@ export function applySignal(panel, dist, signal, rng, signalGroup = 1) {
         return panel;
 
     if (signal.type === "location") {
-        if (dist !== "lognormal") {
-            for (let i = 0; i < panel.y.length; i++)
-                if (panel.group[i] === signalGroup) panel.y[i] += signal.delta_sd;
-        }
-        else {
-            for (let i = 0; i < panel.y.length; i++)
-                if (panel.group[i] === signalGroup) panel.y[i] *= signal.ratio;
-        }
+        for (let i = 0; i < panel.y.length; i++)
+            if (panel.group[i] === signalGroup) panel.y[i] += signal.delta_sd;
         return panel;
     }
 
     if (signal.type === "spread") {
         const k = signal.spread_factor;
-        if (dist !== "lognormal") {
-            for (let i = 0; i < panel.y.length; i++)
-                if (panel.group[i] === signalGroup) panel.y[i] *= k;
-        }
-        else {
-            // Power transform in log-space: exp(log(y)·k) = yᵏ, which spreads log-normal σ by k.
-            for (let i = 0; i < panel.y.length; i++)
-                if (panel.group[i] === signalGroup) panel.y[i] = Math.exp(Math.log(panel.y[i]) * k);
-        }
+        for (let i = 0; i < panel.y.length; i++)
+            if (panel.group[i] === signalGroup) panel.y[i] *= k;
         return panel;
     }
 
@@ -196,25 +183,6 @@ export function makeDesign({rng, catalog, nChartTypes, nVariantTypes, distReps, 
             {type: "outlier", nHigh: 2, nLow: 0, magnitude: 4.0, level: "moderate", weight: 0},
             {type: "outlier", nHigh: 1, nLow: 0, magnitude: 4.0, level: "weak",     weight: 0},
             {type: "outlier", nHigh: 0, nLow: 1, magnitude: 4.0, level: "weak",     weight: 0},
-        ],
-        lognormal: [
-            {type: "null",    level: "null",     weight: 10},
-            {type: "location", ratio: 1.2, level: "weak",     weight: 10},
-            {type: "location", ratio: 1.3, level: "weak",     weight: 10},
-            {type: "location", ratio: 1.4, level: "moderate", weight: 10},
-            {type: "location", ratio: 1.5, level: "moderate", weight: 10},
-            {type: "location", ratio: 1.6, level: "strong",   weight: 10},
-            {type: "spread", spread_factor: 1.2, level: "weak",     weight: 10},
-            {type: "spread", spread_factor: 1.4, level: "moderate", weight: 10},
-            {type: "spread", spread_factor: 1.6, level: "moderate", weight: 10},
-            {type: "spread", spread_factor: 1.8, level: "strong",   weight: 10},
-        ],
-        binomial: [
-            {type: "null",   level: "null",     weight: 10},
-            {type: "params", n: 10, p: 0.1, level: "moderate", weight: 10},
-            {type: "params", n: 10, p: 0.3, level: "weak",     weight: 10},
-            {type: "params", n: 10, p: 0.4, level: "strong",   weight: 10},
-            {type: "params", n:  5, p: 0.2, level: "weak",     weight: 10},
         ],
     };
 

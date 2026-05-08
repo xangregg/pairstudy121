@@ -1,8 +1,8 @@
 // app.js
 
 import {renderChart} from "./renderers.js";
-import {wassersteinStat, ksStat, spearmanCorrelation, kendallTauB, goodmanKruskalGamma, csvField} from "./utils.js";
-import {mulberry32, sfc32, hashStringToUint32, randomNormal, normalToSkewNormal} from "./utils.js";
+import {wassersteinStat, ksStat, csvField} from "./utils.js";
+import {mulberry32, hashStringToUint32, randomNormal} from "./utils.js";
 import {N_PER_GROUP, STORAGE_KEY, RATING_DELAY_MS, DIST_REPS, DIST_REPS_TESTING} from "./config.js";
 import {buildCatalog} from "./catalog.js";
 import {loadOrCreateSession, postResponse, postSession, postComment} from "./database.js";
@@ -16,9 +16,7 @@ const params = new URLSearchParams(window.location.search);
 const TESTING = params.has("test")
     ? params.get("test") !== "false"
     : DEFAULT_TESTING;
-const SEEDREVIEW_DIST = params.get("seedreview"); // e.g. ?seedreview=lognormal
-const SKEWPREVIEW = params.has("skewpreview");
-const NOSUBMIT = params.has("nosubmit") || !!SEEDREVIEW_DIST || SKEWPREVIEW;
+const NOSUBMIT = params.has("nosubmit");
 
 // Prolific appends these in uppercase; accept either case for local testing.
 const PROLIFIC_PID = params.get("PROLIFIC_PID") ?? params.get("prolific_pid");
@@ -128,9 +126,7 @@ function buildTrial(trialIdx, cond) {
     const rng = mulberry32(trialSeed);
 
     const raw = generateBasePanel(cond.dist, cond.dataSeed, cond.signal, cond.signalGroup);
-    // Binomial signals are baked into generateBasePanel via binomialGroupParams; all others are post-hoc.
-    if (cond.dist !== "binomial")
-        applySignal(raw, cond.dist, cond.signal, rng, cond.signalGroup);
+    applySignal(raw, cond.dist, cond.signal, rng, cond.signalGroup);
 
     const panel = finalizePanel(raw.y, raw.group);
 
@@ -213,7 +209,6 @@ function getOnboardingPanels() {
     if (_onboardingPanels)
         return _onboardingPanels;
     const rng = mulberry32(35500913);
-    // const rng = sfc32(35500113);
     const N_SRC = 500;
     const sort = arr => arr.slice().sort((a, b) => a - b);
 
@@ -254,15 +249,13 @@ function getOnboardingPanels() {
     return _onboardingPanels;
 }
 
-// Fixed lognormal example pairs for chart-type training, one per chart family.
+// Fixed seeds for chart-type training examples, one per chart family.
 const EXAMPLE_SEEDS = {box: 0xE0011, bands: 0xE0022, dot: 0xE0003, violin: 0xE0004};
 
 function buildChartTypeExamplePanel(chartType) {
     const rng = mulberry32(EXAMPLE_SEEDS[chartType] ?? 0xE0001);
     const N = N_PER_GROUP * 2;
-    const y = distReps.lognormal > 0
-        ? Array.from({length: N}, () => Math.exp(0.5 * randomNormal(rng)))  // lognormal
-        : Array.from({length: N}, () => randomNormal(rng));                  // normal
+    const y = Array.from({length: N}, () => randomNormal(rng));
     const group = Array.from({length: N}, (_, i) => i < N_PER_GROUP ? 0 : 1);
     return finalizePanel(y, group);
 }
@@ -419,7 +412,7 @@ function renderOnboardingStep() {
     // Reserve fixed heights within each section so the canvas and Continue button
     // stay at the same vertical position across pages within a section.
     const isChartTypeSection = step.type === "chartTypeIntro" || step.type === "chartType";
-    const isSamplingSection = step.type === "sampling1" || step.type === "sameSources" || step.type === "diffSources";
+    const isSamplingSection = step.type === "sampling1" || step.type === "diffSources";
     const horiz = currentOrientation() === "horizontal";
     UI.onboardingText.style.minHeight = isChartTypeSection ? "150px" : isSamplingSection ? "150px" : "";
     const naturalCanvasH = isChartTypeSection ? (horiz ? WIDTH_2_UP : HEIGHT_2_UP) - (step.type === "chartTypeIntro" ? 10 : 0)
@@ -441,14 +434,12 @@ function renderOnboardingStep() {
         UI.onboardingThumbnails.style.display = "flex";
 
     }
-    else if (step.type === "sameSources" || step.type === "diffSources") {
-        // seed
-        const same = step.type === "sameSources";
-        const {sameSrc, sameSamples, diffSrcs, diffSamples} = getOnboardingPanels();
+    else if (step.type === "diffSources") {
+        const {diffSrcs, diffSamples} = getOnboardingPanels();
         const chartSteps = getOnboardingSteps().filter(s => s.type === "chartType");
         const chartTypes = chartSteps.map(s => session.design.selectedChartTypes[s.index]);
 
-        const allData = same ? [sameSrc, ...sameSamples] : [...diffSrcs, ...diffSamples];
+        const allData = [...diffSrcs, ...diffSamples];
         let mn = Math.min(...allData.map(g => g[0]));
         let mx = Math.max(...allData.map(g => g[g.length - 1]));
         const span = (mx - mn) || 1;
@@ -456,25 +447,20 @@ function renderOnboardingStep() {
         mx += span * 0.08;
 
         if (step.page === 0) {
-            UI.onboardingTitle.textContent = same ? "Same Source" : "Different Sources";
-            UI.onboardingText.innerHTML = same
-                ? `<p>A source can produce many different samples. Below are four identical views of the same source (500 values).</p>`
-                : `<p>You've seen how the same source looks across chart types. Now here are four <strong>different</strong> sources — each with a different location, spread, or shape.</p>`;
-            const groups = same ? [sameSrc, sameSrc, sameSrc, sameSrc] : diffSrcs;
-            const labels = same ? ["Source","Source","Source","Source"] : ["A","B","C","D"];
-            renderFourGroupsRow(groups, "dot", labels, mn, mx, {violinScale: 40}, 3.2, 20);
+            UI.onboardingTitle.textContent = "Different Sources";
+            UI.onboardingText.innerHTML =
+                `<p>You've seen how the same source looks across chart types. Now here are four <strong>different</strong> sources — each with a different location, spread, or shape.</p>`;
+            renderFourGroupsRow(diffSrcs, "dot", ["A","B","C","D"], mn, mx, {violinScale: 40}, 3.2, 20);
             UI.onboardingThumbnails.style.marginTop = "28px";
         }
         else {
             const ct = chartTypes[step.page - 1];
             const ctName = ct.type.charAt(0).toUpperCase() + ct.type.slice(1);
             const opts = getPlainCatalogOptions(ct);
-            UI.onboardingTitle.textContent = same ? "Same Source, Similar Samples" : "Different Sources, Different Samples";
-            UI.onboardingText.innerHTML = same
-                ? `<p>Four random samples from the same source, shown as <strong>${ctName}</strong> charts. They look similar but not identical.</p>`
-                : `<p>One sample from each source, shown as <strong>${ctName}</strong> charts. Notice how A, B, C, D look more distinct than the same-source samples on the previous pages.</p>`;
-            const groups = same ? sameSamples : diffSamples;
-            renderFourGroupsRow(groups, ct.type, ["A","B","C","D"], mn, mx, {violinScale: 4, ...opts}, 3.2, 20);
+            UI.onboardingTitle.textContent = "Different Sources, Different Samples";
+            UI.onboardingText.innerHTML =
+                `<p>One sample from each source, shown as <strong>${ctName}</strong> charts. Notice how A, B, C, D look more distinct than the same-source samples on the previous pages.</p>`;
+            renderFourGroupsRow(diffSamples, ct.type, ["A","B","C","D"], mn, mx, {violinScale: 4, ...opts}, 3.2, 20);
             UI.onboardingChartLabel.textContent = opts.description;
             UI.onboardingThumbnails.style.marginTop = "28px";
         }
@@ -711,9 +697,6 @@ function computeRatingStats() {
     byBucket.alignmentScore = weightedTotal > 0
         ? ((b1.n - b1.nDifferent) + b3.nDifferent * w3 + b4.nDifferent) / weightedTotal
         : null;
-    byBucket.spearman = spearmanCorrelation(ksValues, ratings);
-    byBucket.kendall  = kendallTauB(ksValues, ratings);
-    byBucket.gamma    = goodmanKruskalGamma(ksValues, ratings);
     return byBucket;
 }
 
@@ -738,8 +721,6 @@ function finishStudy() {
     const scorePct = ratingStats.alignmentScore !== null
         ? Math.round(ratingStats.alignmentScore * 100) + "%"
         : "--";
-    const fmt = v => v != null ? v.toFixed(2) : "--";
-    const {spearman, kendall, gamma} = ratingStats;
 
     statsEl.innerHTML =
         `<p>The study aims to evaluate the charts, not the participants, but if you're curious, here are your response patterns.</p>` +
@@ -747,8 +728,7 @@ function finishStudy() {
         `<thead><tr><th>Expected difference</th><th>Count</th><th>% marked Different</th></tr></thead>` +
         `<tbody>${rows}</tbody>` +
         `</table>` +
-        `<p style="margin-top:12px;">Alignment score (extreme buckets): <strong>${scorePct}</strong></p>` +
-        `<p>Spearman: <strong>${fmt(spearman)}</strong> &nbsp; Kendall: <strong>${fmt(kendall)}</strong> &nbsp; Gamma: <strong>${fmt(gamma)}</strong></p>`;
+        `<p style="margin-top:12px;">Alignment score (extreme buckets): <strong>${scorePct}</strong></p>`;
     statsEl.style.display = "block";
     if (PROLIFIC_PID && COMPLETION_CODE) {
         document.getElementById("completionCodeText").textContent = COMPLETION_CODE;
@@ -792,21 +772,12 @@ function recordResponse(rating) {
 }
 
 function downloadResults() {
-    const bg = session.background ?? {};
     const cols = [
         "participant_id", "trial_index", "trial_seed", "data_seed",
         "chart_type", "chart_variant", "orientation", "jitter",
         "distribution", "signal_group",
         "location", "spread", "skew", "bimodal", "outlier",
         "rating", "rt_ms", "finished_at",
-        "bg_viz_frequency", "bg_chart_frequency",
-        "bg_mean", "bg_sd", "bg_median", "bg_quartile",
-        "bg_box_plot", "bg_sampling", "bg_significance",
-    ];
-    const bgVals = [
-        bg.vizFrequency ?? "", bg.chartFrequency ?? "",
-        bg.mean ?? "", bg.sd ?? "", bg.median ?? "", bg.quartile ?? "",
-        bg.boxPlot ?? "", bg.sampling ?? "", bg.linearRegression ?? "",
     ];
     const nResults = session.results.length;
     const rows = [cols.join(",")];
@@ -826,7 +797,6 @@ function downloadResults() {
             sig.delta_sd ?? 0, sig.spread_factor ?? 1, sig.base ?? 1,
             sig.separation ?? 0, outlier,
             r.rating, r.rtMs, finishedAt,
-            ...bgVals,
         ].map(csvField).join(","));
     });
     const blob = new Blob([rows.join("\n")], {type: "text/csv"});
@@ -865,8 +835,7 @@ function downloadSimulation() {
             const trialSeed = hashStringToUint32(`${participantSeed}|${trialIdx}|${conditionId}`);
             const trialRng = mulberry32(trialSeed);
             const raw = generateBasePanel(cond.dist, cond.dataSeed, cond.signal, cond.signalGroup);
-            if (cond.dist !== "binomial")
-                applySignal(raw, cond.dist, cond.signal, trialRng, cond.signalGroup);
+            applySignal(raw, cond.dist, cond.signal, trialRng, cond.signalGroup);
             const panel = finalizePanel(raw.y, raw.group);
             const w = wassersteinStat(panel.groups[0], panel.groups[1]);
             const ks = ksStat(panel.groups[0], panel.groups[1]);
@@ -1003,124 +972,17 @@ for (const b of UI.ratingBtns) {
     b.addEventListener("click", () => recordResponse(parseInt(b.dataset.rating, 10)));
 }
 
-// Hide diagnostic controls unless ?diagnostics=true or seed review mode
-if (params.get("diagnostics") !== "true" && !SEEDREVIEW_DIST && !SKEWPREVIEW) {
+if (params.get("diagnostics") !== "true") {
     for (const id of ["trialFooter", "debugDetails", "completionActions"]) {
         const el = document.getElementById(id);
         if (el) el.style.display = "none";
     }
 }
 
-/** ---------- Skew preview mode (?skewpreview) ---------- **/
-
-function renderSkewPreview() {
-    // Replace the entire body with a self-contained preview grid.
-    // Shows null N(0,1) paired with normalized SN(alpha) for each alpha in the study.
-    const ALPHAS = [-7, -5, -3, 3, 5, 7];
-    const N = 500;
-    const CHART_TYPES = ["violin", "box"];
-    const rng = mulberry32(0xA1B2C3D4);
-
-    // Generate null group once; reused as group A in every pair.
-    const nullData = Array.from({length: N}, () => randomNormal(rng)).sort((a, b) => a - b);
-
-    document.body.innerHTML = "";
-    document.body.style.cssText = "margin:0; padding:16px; background:var(--bg); color:var(--text); font-family:system-ui,sans-serif;";
-
-    const title = document.createElement("h2");
-    title.textContent = "Skew preview — null N(0,1) vs normalized SN(α)";
-    title.style.cssText = "margin:0 0 16px; font-size:18px;";
-    document.body.appendChild(title);
-
-    for (const alpha of ALPHAS) {
-        const delta = alpha / Math.sqrt(1 + alpha * alpha);
-        const sigma = Math.sqrt(1 - 2 * delta * delta / Math.PI);
-        const median = normalToSkewNormal(0, alpha);
-
-        // Generate skewed group B, median-centered and spread-normalized.
-        // Seed per alpha: spread them out so each alpha gets an independent sequence.
-        const skewSeed = (0xA1B2C3D4 + (alpha < 0 ? 0x10000 : 0) + Math.abs(alpha) * 0x1000) >>> 0;
-        const skewedRng = mulberry32(skewSeed);
-        const skewData = Array.from({length: N}, () => {
-            const z = randomNormal(skewedRng);
-            return (normalToSkewNormal(z, alpha) - median) / sigma;
-        }).sort((a, b) => a - b);
-
-        const panel = {groups: [nullData.slice(), skewData]};
-        const allY = [...panel.groups[0], ...panel.groups[1]];
-        const yMin = Math.min(...allY);
-        const yMax = Math.max(...allY);
-        const pad = (yMax - yMin) * 0.12;
-
-        const section = document.createElement("div");
-        section.style.cssText = "margin-bottom:24px;";
-
-        const heading = document.createElement("p");
-        heading.style.cssText = "margin:0 0 8px; font-size:16px; font-weight:600; color:var(--text);";
-        heading.textContent = `α = ${alpha}  (median=${median.toFixed(3)}, sigma=${sigma.toFixed(3)})`;
-        section.appendChild(heading);
-
-        const row = document.createElement("div");
-        row.style.cssText = "display:flex; gap:12px; flex-wrap:wrap;";
-
-        for (const chartType of CHART_TYPES) {
-            const wrap = document.createElement("div");
-            wrap.style.cssText = "display:flex; flex-direction:column; align-items:center; gap:4px;";
-
-            const label = document.createElement("span");
-            label.style.cssText = "font-size:13px; color:var(--text-muted);";
-            label.textContent = chartType;
-            wrap.appendChild(label);
-
-            const c = document.createElement("canvas");
-            c.width = WIDTH_2_UP;
-            c.height = HEIGHT_2_UP;
-            c.style.cssText = "width:200px; height:auto; border:1px solid var(--border); border-radius:6px; background:#fff;";
-            renderChart(c.getContext("2d"), c, chartType, panel, yMin - pad, yMax + pad, {
-                showDots: false,
-                maxHalfW: 500
-            }, "vertical", "wilkinson");
-            wrap.appendChild(c);
-
-            row.appendChild(wrap);
-        }
-
-        section.appendChild(row);
-        document.body.appendChild(section);
-    }
-}
 
 if (PROLIFIC_PID && !COMPLETION_CODE) {
     document.getElementById("errorPage").style.display = "block";
     postComment(session, `Missing pg param. URL: ${window.location.href}`, NOSUBMIT);
-}
-else if (SKEWPREVIEW) {
-    renderSkewPreview();
-}
-else if (SEEDREVIEW_DIST) {
-    // Seed review mode: one trial per DATA_SEED in order, fixed distribution, null signal, dot plot
-    localStorage.removeItem(STORAGE_KEY);
-    const dotOptions = CHART_TYPE_CATALOG.find(e => e.type === "dot").variants[0];
-    session = {
-        participantId: "seed-review",
-        participantSeed: 0,
-        startedAtISO: new Date().toISOString(),
-        trialIndex: 0,
-        results: [],
-        design: {
-            conditions: DATA_SEEDS.map(seed => ({
-                chartType: "dot", chartOptions: dotOptions,
-                dist: SEEDREVIEW_DIST, signal: {type: "null"},
-                dataSeed: seed, signalGroup: 0,
-            })),
-            selectedChartTypes: [{type: "dot", options: dotOptions}],
-            orientation: "vertical", jitter: "wilkinson",
-            distSignals: {}, distReps: {}, dataSeeds: DATA_SEEDS,
-        },
-    };
-    UI.downloadBtn.disabled = UI.downloadDesignBtn.disabled = false;
-    showTrial();
-    nextTrial();
 }
 // Resume from wherever the participant left off
 else if (!session.startedAtISO) {

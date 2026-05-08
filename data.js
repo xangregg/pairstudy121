@@ -3,52 +3,14 @@
 import {mulberry32, randomNormal} from "./utils.js";
 import {N_PER_GROUP, SEED_THRESHOLDS, MEAN_D_THRESHOLD} from "./config.js";
 
-function binomialGroupParams(n0, p0, signal) {
-    if (signal.type === "location") {
-        const delta_p = signal.delta_sd * Math.sqrt(p0 * (1 - p0) / n0);
-        return {n: n0, p: Math.min(0.99, Math.max(0.01, p0 + delta_p))};
-    }
-    if (signal.type === "spread") {
-        return {n: Math.round(n0 * signal.spread_factor), p: p0};
-    }
-    if (signal.type === "params") {
-        return {n: signal.n, p: signal.p};
-    }
-    return {n: n0, p: p0};  // null and unsupported types
-}
-
 export function generateBasePanel(dist, seed, signal = {type: "null"}, signalGroup = 1) {
     const rng = mulberry32(seed);
     const N = N_PER_GROUP * 2;
     const y = new Array(N);
     const group = new Array(N);
-    for (let i = 0; i < N; i++)
+    for (let i = 0; i < N; i++) {
         group[i] = (i < N_PER_GROUP) ? 0 : 1;
-    if (dist === "normal") {
-        for (let i = 0; i < N; i++)
-            y[i] = randomNormal(rng);
-    }
-    else if (dist === "lognormal") {
-        const sigma = 0.5;
-        for (let i = 0; i < N; i++)
-            y[i] = Math.exp(sigma * randomNormal(rng));
-    }
-    else if (dist === "binomial") {
-        const n0 = 10, p0 = 0.2;
-        const mu = n0 * p0, sigma = Math.sqrt(n0 * p0 * (1 - p0));
-        const g1 = binomialGroupParams(n0, p0, signal);
-        for (let i = 0; i < N; i++) {
-            const n = group[i] !== signalGroup ? n0 : g1.n;
-            const p = group[i] !== signalGroup ? p0 : g1.p;
-            let k = 0;
-            for (let j = 0; j < n; j++)
-                if (rng() < p)
-                    k++;
-            y[i] = (k - mu) / sigma;
-        }
-    }
-    else {
-        throw new Error("Unknown dist: " + dist);
+        y[i] = randomNormal(rng);
     }
     return {y, group};
 }
