@@ -151,11 +151,11 @@ export function makeDesign({rng, catalog, nChartTypes, nVariantTypes, distReps, 
 
     const distSignals = {
         normal: [
-            {type: "null",    level: "null",     weight: 12},
+            {type: "null",    level: "null",     weight: 10},
             {type: "location", delta_sd: 0.2, level: "weak",     weight: 2},
             {type: "location", delta_sd: 0.3, level: "weak",     weight: 2},
             {type: "location", delta_sd: 0.4, level: "weak",     weight: 2},
-            {type: "location", delta_sd: 0.5, level: "moderate", weight: 2},
+            {type: "location", delta_sd: 0.5, level: "moderate", weight: 3},
             {type: "location", delta_sd: 0.6, level: "moderate", weight: 3},
             {type: "location", delta_sd: 0.7, level: "moderate", weight: 3},
             {type: "location", delta_sd: 0.8, level: "moderate", weight: 3},

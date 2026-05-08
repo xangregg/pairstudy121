@@ -646,7 +646,7 @@ function nextTrial() {
 
 // Wasserstein thresholds (N=50 per group) mapping distance to expected bucket 1–4.
 // Approximate boundaries — calibrated against round 1 — for entertainment only.
-const W_THRESHOLDS = [0.2, 0.28, 0.38]; // boundaries between buckets 1/2, 2/3, 3/4
+const W_THRESHOLDS = [0.19, 0.28, 0.42]; // boundaries between buckets 1/2, 2/3, 3/4
 
 // Per-signal-type multipliers applied to Wasserstein before bucketing.
 // Boost types where Wasserstein underestimates statistical difference.
