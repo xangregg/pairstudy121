@@ -708,10 +708,10 @@ function finishStudy() {
     showCompletion();
     const statsEl = document.getElementById("ratingStats");
     const BUCKETS = [
-        {key: "1", label: "Same"},
-        {key: "2", label: "Slightly different"},
-        {key: "3", label: "Moderately different"},
-        {key: "4", label: "Very different"},
+        {key: "1", label: "Least different"},
+        {key: "2", label: "A bit different"},
+        {key: "3", label: "More different"},
+        {key: "4", label: "Most different"},
     ];
     const rows = BUCKETS.map(({key, label}) => {
         const s = ratingStats[key];

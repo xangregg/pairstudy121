@@ -8,6 +8,7 @@ import {
     owensT, normalToSkewNormal, makeBinomialSampler,
     interpolate, ksStat, goodmanKruskalGamma, kendallTauB,
     spearmanCorrelation, shuffleInPlace, quantileSorted, boxStats, csvField,
+    skewness,
 } from './utils.js';
 
 function assertFuzzyEqual(actual, expected, tol = 1e-9) {
@@ -261,6 +262,29 @@ describe('csvField', () => {
         assert.ok(result.startsWith('"') && result.endsWith('"'));
         // Round-trip: stripping outer quotes and unescaping should recover the original
         assert.strictEqual(result.slice(1, -1).replace(/""/g, '"'), json);
+    });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('skewness', () => {
+    test('symmetric array returns 0', () => {
+        assertFuzzyEqual(skewness([1, 2, 3, 4, 5]), 0);
+    });
+    test('right-skewed: one high outlier gives positive skewness', () => {
+        // [1,1,1,5]: mean=2, m2=3, m3=6, skewness=6/3^1.5 ≈ 1.1547
+        assertFuzzyEqual(skewness([1, 1, 1, 5]), 6 / Math.pow(3, 1.5), 1e-9);
+    });
+    test('left-skewed: one low outlier gives negative skewness', () => {
+        assertFuzzyEqual(skewness([1, 5, 5, 5]), -6 / Math.pow(3, 1.5), 1e-9);
+    });
+    test('constant array returns 0 (no divide-by-zero)', () => {
+        assertFuzzyEqual(skewness([3, 3, 3, 3]), 0);
+    });
+    test('negates when array is reflected', () => {
+        const a = [1, 2, 4, 8];
+        const neg = a.map(v => -v);
+        assertFuzzyEqual(skewness(a), -skewness(neg), 1e-9);
     });
 });
 

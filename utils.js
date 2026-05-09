@@ -175,6 +175,15 @@ export function wassersteinStat(a, b) {
     return iqr > 0 ? raw / iqr : raw;
 }
 
+// Sample skewness (third standardised central moment). Returns 0 for constant arrays.
+export function skewness(arr) {
+    const n = arr.length;
+    const mean = arr.reduce((s, v) => s + v, 0) / n;
+    const m2 = arr.reduce((s, v) => s + (v - mean) ** 2, 0) / n;
+    const m3 = arr.reduce((s, v) => s + (v - mean) ** 3, 0) / n;
+    return m2 > 0 ? m3 / m2 ** 1.5 : 0;
+}
+
 // Goodman-Kruskal γ: (C − D) / (C + D), ignoring all tied pairs.
 // Ranges from -1 to 1; tied pairs (on either variable) are excluded entirely.
 export function goodmanKruskalGamma(xs, ys) {

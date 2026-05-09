@@ -1,6 +1,6 @@
 // data.js — base data generation and seed screening
 
-import {mulberry32, randomNormal} from "./utils.js";
+import {mulberry32, randomNormal, skewness} from "./utils.js";
 import {N_PER_GROUP, SEED_THRESHOLDS, MEAN_D_THRESHOLD} from "./config.js";
 
 export function generateBasePanel(dist, seed, signal = {type: "null"}, signalGroup = 1) {
@@ -26,14 +26,6 @@ export function finalizePanel(y, group) {
     for (const g of groups)
         g.sort((a, b) => a - b);
     return {groups};
-}
-
-function skewness(arr) {
-    const n = arr.length;
-    const mean = arr.reduce((s, v) => s + v, 0) / n;
-    const m2 = arr.reduce((s, v) => s + (v - mean) ** 2, 0) / n;
-    const m3 = arr.reduce((s, v) => s + (v - mean) ** 3, 0) / n;
-    return m2 > 0 ? m3 / m2 ** 1.5 : 0;
 }
 
 // Auto-screen candidate seeds: reject if groups differ too much under null signal.

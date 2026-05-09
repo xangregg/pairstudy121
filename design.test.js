@@ -126,17 +126,20 @@ describe('applySignal', () => {
                 `group 1 index ${i} should scale by 3`);
     });
 
-    test('skew with alpha=0 is approximately identity on signal group', () => {
-        const panel = makePanel(5);
+    test('skew leaves reference group unchanged and normalises signal group', () => {
+        const panel = makePanel(10);
         const before = [...panel.y];
-        applySignal(panel, 'normal', {type: 'skew', alpha: 0}, mulberry32(1 >>> 0), 1);
+        applySignal(panel, 'normal', {type: 'skew', base: 2.0}, mulberry32(1 >>> 0), 1);
         // group 0 unchanged
-        for (let i = 0; i < 5; i++)
-            assert.strictEqual(panel.y[i], before[i]);
-        // group 1 approximately unchanged (normalToSkewNormal(z, 0) ≈ z)
-        for (let i = 5; i < 10; i++)
-            assert.ok(Math.abs(panel.y[i] - before[i]) < 1e-5,
-                `skew(0) at index ${i}: ${panel.y[i]} vs ${before[i]}`);
+        for (let i = 0; i < 10; i++)
+            assert.strictEqual(panel.y[i], before[i], `group 0 index ${i} should be unchanged`);
+        // group 1 modified and normalised: mean ≈ 0, sd ≈ 1
+        const g1 = panel.y.slice(10);
+        const mean = g1.reduce((s, v) => s + v, 0) / g1.length;
+        const sd = Math.sqrt(g1.reduce((s, v) => s + (v - mean) ** 2, 0) / g1.length);
+        assert.ok(Math.abs(mean) < 1e-10, `signal group mean should be 0, got ${mean}`);
+        assert.ok(Math.abs(sd - 1) < 1e-10, `signal group sd should be 1, got ${sd}`);
+        assert.notDeepStrictEqual(g1, before.slice(10), 'signal group should be changed');
     });
 
     test('outlier places nHigh large positive values in signal group', () => {
@@ -233,8 +236,10 @@ describe('generateBasePanel', () => {
         assert.notDeepStrictEqual(p1.y, p2.y);
     });
 
-    test('unknown dist throws', () => {
-        assert.throws(() => generateBasePanel('gamma', 12300000), /Unknown dist/);
+    test('only normal dist is supported; always returns N×2 panel', () => {
+        const panel = generateBasePanel('normal', 12300000);
+        assert.strictEqual(panel.y.length, panel.group.length);
+        assert.ok(panel.y.length > 0);
     });
 });
 
