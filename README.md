@@ -2,7 +2,7 @@
 
 This app shows pairs of univariate charts and asks participants to assess whether they are from different sources.
 
-The current version has 72 pairs to assess at 2 response levels (same or different). Try it in test mode at [https://pairstudy121.pages.dev](xangregg.github.io/pairstudy121?group=gh2).
+The current version has 80 pairs to assess at 2 response levels (same or different). Try it in test mode at [https://pairstudy121.pages.dev](https://pairstudy121.pages.dev/?group=gh2).
 
 The round 1 version has 100 pairs to assess at 4 response levels at [xangregg.github.io/pairstudy121](https://xangregg.github.io/pairstudy121/?group=gh1).
 
