@@ -16,7 +16,7 @@ export const RATING_DELAY_MS = 500;
 export const JITTER_CATALOG = ["random", "wilkinson", "beeswarm", "density random"];
 
 // Number of repetitions (reps × chart type categories = baseline total trials).
-export const DIST_REPS          = {normal: 18};
+export const DIST_REPS          = {normal: 20};
 export const DIST_REPS_TESTING  = {normal:  1};
 
 // Trial allocation constraints across chart type categories and variants.
