@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Treatment Gallery</title>
+<style>
+body { font-family: system-ui, sans-serif; margin: 24px; color: #333; }
+h1 { margin-bottom: 4px; }
+p.note { margin: 0 0 20px; font-size: 13px; color: #777; }
+h2 { text-transform: capitalize; margin: 32px 0 6px; border-bottom: 2px solid #ccc; padding-bottom: 4px; }
+
+.section-grid { overflow-x: auto; }
+.chart-row { display: flex; align-items: center; margin-bottom: 4px; }
+.row-label {
+    width: 160px; flex-shrink: 0; font-size: 11px; line-height: 1.4;
+    padding-right: 10px; color: #555;
+}
+.header-row .row-label { font-weight: bold; color: #333; }
+.signal-label {
+    width: 175px; flex-shrink: 0; font-size: 11px; text-align: center; color: #555;
+    padding-bottom: 4px;
+}
+.chart-cell { width: 175px; flex-shrink: 0; min-height: 200px; }
+.chart-cell img { display: block; width: 175px; height: 200px; border: 1px solid #eee; }
+.chart-cell.missing { background: #f8f8f8; border: 1px dashed #ddd; }
+</style>
+</head>
+<body>
+<h1>Chart Type and Treatment Gallery</h1>
+<p class="note">Sample pairs for each chart type and treatment with three levels of each treatment.
+    Three null treatment examples are shown.
+    Null-1 is used for each of the non-null treatments. Null-2 and null-3 provide a sense of the null variation.</p>
+<div id="gallery"></div>
+<script>
+const TYPES = ["box", "bands", "dot", "violin"];
+
+const VARIANTS = {
+    box: [
+        ["box_plot_median_quartiles_and_outlier_range_lines",                           "Box plot"],
+        ["box_plot_with_dots_median_quartiles_and_outlier_range_lines",                 "Box plot with dots"],
+        ["range_bar_median_quartiles_and_data_range_lines",                             "Range bar"],
+    ],
+    bands: [
+        ["central_bands_66_90_99_with_median",  "Central bands (66%, 90%, 99%) + median"],
+        ["density_bands_50_90_99_with_mode",    "Density bands (50%, 90%, 99%) + mode"],
+        ["density_bands_5_50_90",               "Density bands (5%, 50%, 90%)"],
+        ["density_bands_33_67_100",             "Density bands (33%, 67%, 100%)"],
+    ],
+    dot: [
+        ["dot_plot",             "Dot plot"],
+        ["dot_plot_with_median", "Dot plot with median"],
+    ],
+    violin: [
+        ["violin_plot_smoothed_distribution",                                           "Violin plot"],
+        ["violin_plot_with_box_smoothed_distribution_with_median_and_quartiles",        "Violin + box plot"],
+        ["violin_plot_with_dots_smoothed_distribution",                                 "Violin + dots"],
+        ["violin_plot_with_median_smoothed_distribution",                               "Violin + median"],
+    ],
+};
+
+const SIGNALS = [
+    "null-1", "null-2", "null-3",
+    "loc-sm", "loc-med", "loc-lg",
+    "spread-sm", "spread-med", "spread-lg",
+    "bimodal-sm", "bimodal-med", "bimodal-lg",
+];
+
+function el(tag, cls = "", text = "") {
+    const e = document.createElement(tag);
+    if (cls)  e.className   = cls;
+    if (text) e.textContent = text;
+    return e;
+}
+
+const gallery = document.getElementById("gallery");
+
+for (const type of TYPES) {
+    const section = document.createElement("section");
+    section.appendChild(Object.assign(document.createElement("h2"), {textContent: type}));
+
+    const grid = el("div", "section-grid");
+
+    const hrow = el("div", "chart-row header-row");
+    hrow.appendChild(el("div", "row-label", "variant"));
+    for (const sig of SIGNALS)
+        hrow.appendChild(el("div", "signal-label", sig));
+    grid.appendChild(hrow);
+
+    for (const [slug, label] of VARIANTS[type]) {
+        const row = el("div", "chart-row");
+        row.appendChild(el("div", "row-label", label));
+
+        for (const sig of SIGNALS) {
+            const key = `${type}__${slug}__${sig}`;
+            const cell = el("div", "chart-cell");
+            const img = document.createElement("img");
+            img.src = `treatment_gallery/${key}.png`;
+            img.alt = key;
+            img.onerror = () => {
+                img.remove();
+                cell.classList.add("missing");
+            };
+            cell.appendChild(img);
+            row.appendChild(cell);
+        }
+
+        grid.appendChild(row);
+    }
+
+    section.appendChild(grid);
+    gallery.appendChild(section);
+}
+</script>
+</body>
+</html>

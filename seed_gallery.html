@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Seed Gallery</title>
+<style>
+body { font-family: system-ui, sans-serif; margin: 24px; color: #333; }
+h1 { margin-bottom: 4px; }
+p.note { margin: 0 0 20px; font-size: 13px; color: #777; }
+.grid { display: flex; flex-wrap: wrap; gap: 16px; }
+.seed-card { display: flex; flex-direction: column; align-items: center; }
+.seed-card img { display: block; width: 175px; height: 200px; border: 1px solid #eee; }
+.card-label { font-size: 11px; color: #555; text-align: center; margin-top: 4px; line-height: 1.6; }
+.card-label strong { color: #222; }
+</style>
+</head>
+<body>
+<h1>Seed Gallery</h1>
+<p class="note">Screened data seeds as null dot plot pairs, sorted by Kolmogorov-Smirnov distance ascending.</p>
+<div id="gallery" class="grid"></div>
+<script>
+const FILES = [
+    "seed_10100000_ks0.140.png",
+    "seed_10300000_ks0.120.png",
+    "seed_10400000_ks0.200.png",
+    "seed_10600000_ks0.140.png",
+    "seed_10700000_ks0.160.png",
+    "seed_10800000_ks0.160.png",
+    "seed_11100000_ks0.100.png",
+    "seed_11300000_ks0.120.png",
+    "seed_11400000_ks0.100.png",
+    "seed_11500000_ks0.160.png",
+    "seed_11600000_ks0.120.png",
+    "seed_11900000_ks0.180.png",
+    "seed_12100000_ks0.160.png",
+    "seed_12200000_ks0.140.png",
+    "seed_12300000_ks0.160.png",
+    "seed_12400000_ks0.100.png",
+    "seed_12500000_ks0.100.png",
+    "seed_12600000_ks0.160.png",
+    "seed_12700000_ks0.100.png",
+    "seed_12900000_ks0.100.png",
+    "seed_13100000_ks0.080.png",
+    "seed_13200000_ks0.160.png",
+    "seed_13300000_ks0.140.png",
+    "seed_13400000_ks0.120.png",
+    "seed_13500000_ks0.120.png",
+    "seed_13600000_ks0.140.png",
+    "seed_13800000_ks0.140.png",
+    "seed_13900000_ks0.160.png",
+    "seed_14100000_ks0.140.png",
+    "seed_14200000_ks0.160.png",
+    "seed_14300000_ks0.100.png",
+    "seed_14400000_ks0.120.png",
+    "seed_14500000_ks0.080.png",
+    "seed_14600000_ks0.200.png",
+    "seed_14700000_ks0.160.png",
+    "seed_14900000_ks0.100.png",
+    "seed_15200000_ks0.160.png",
+    "seed_15300000_ks0.140.png",
+    "seed_15400000_ks0.120.png",
+    "seed_15500000_ks0.160.png",
+    "seed_15700000_ks0.120.png",
+    "seed_15800000_ks0.360.png",
+    "seed_15900000_ks0.200.png",
+    "seed_16100000_ks0.120.png",
+    "seed_16300000_ks0.180.png",
+    "seed_16400000_ks0.180.png",
+    "seed_16500000_ks0.100.png",
+    "seed_16600000_ks0.160.png",
+    "seed_16800000_ks0.100.png",
+    "seed_17100000_ks0.140.png",
+    "seed_17200000_ks0.160.png",
+    "seed_17500000_ks0.140.png",
+    "seed_17700000_ks0.140.png",
+    "seed_17800000_ks0.140.png",
+    "seed_17900000_ks0.180.png",
+    "seed_18400000_ks0.160.png",
+    "seed_18500000_ks0.100.png",
+    "seed_18700000_ks0.120.png",
+    "seed_19300000_ks0.140.png",
+    "seed_19400000_ks0.100.png",
+    "seed_19500000_ks0.200.png",
+    "seed_19600000_ks0.160.png",
+    "seed_19700000_ks0.160.png",
+    "seed_19800000_ks0.180.png",
+    "seed_20100000_ks0.160.png",
+    "seed_20200000_ks0.080.png",
+    "seed_20300000_ks0.140.png",
+    "seed_20400000_ks0.140.png",
+    "seed_20600000_ks0.180.png",
+    "seed_20800000_ks0.120.png",
+    "seed_21300000_ks0.160.png",
+    "seed_21400000_ks0.180.png",
+    "seed_21500000_ks0.100.png",
+    "seed_21800000_ks0.160.png",
+    "seed_21900000_ks0.200.png",
+    "seed_22100000_ks0.160.png",
+    "seed_22200000_ks0.180.png",
+    "seed_22300000_ks0.140.png",
+    "seed_22600000_ks0.140.png",
+    "seed_22700000_ks0.160.png",
+];
+
+const entries = FILES.map(f => {
+    const m = f.match(/seed_(\d+)_ks([\d.]+)\.png/);
+    return {file: f, seed: m[1], ks: parseFloat(m[2])};
+});
+
+entries.sort((a, b) => a.ks - b.ks || a.seed - b.seed);
+
+const gallery = document.getElementById("gallery");
+
+for (const {file, seed, ks} of entries) {
+    const img = document.createElement("img");
+    img.src  = `seed_gallery/${file}`;
+    img.alt  = file;
+
+    const label = document.createElement("div");
+    label.className = "card-label";
+    label.innerHTML = `<strong>${Number(seed).toLocaleString()}</strong><br>KS = ${ks.toFixed(3)}`;
+
+    const card = document.createElement("div");
+    card.className = "seed-card";
+    card.appendChild(img);
+    card.appendChild(label);
+    gallery.appendChild(card);
+}
+</script>
+</body>
+</html>

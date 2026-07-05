@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Chart Gallery</title>
+<style>
+body { font-family: system-ui, sans-serif; margin: 24px; color: #333; }
+h1 { margin-bottom: 4px; }
+p.note { margin: 0 0 20px; font-size: 13px; color: #777; }
+h2 { text-transform: capitalize; margin: 32px 0 6px; border-bottom: 2px solid #ccc; padding-bottom: 4px; }
+.controls { margin-bottom: 24px; display: flex; gap: 12px; align-items: center; }
+button { padding: 8px 16px; font-size: 14px; cursor: pointer; }
+#status { font-size: 13px; color: #555; }
+
+.section-grid { overflow-x: auto; }
+.chart-row { display: flex; align-items: stretch; margin-bottom: 6px; }
+.row-label {
+    width: 230px; flex-shrink: 0; font-size: 11px; line-height: 1.4;
+    padding: 4px 10px 0 0; color: #555; word-break: break-word;
+    display: flex; align-items: center;
+}
+.header-row .row-label { font-size: 12px; font-weight: bold; color: #333; align-items: flex-end; }
+.signal-label {
+    width: 175px; flex-shrink: 0; font-size: 11px; text-align: center;
+    color: #555; padding-bottom: 4px; display: flex; align-items: flex-end; justify-content: center;
+}
+.chart-cell { width: 175px; flex-shrink: 0; }
+canvas {
+    width: 175px; height: 200px; display: block;
+    cursor: pointer; border: 1px solid #eee;
+}
+canvas:hover { outline: 2px solid #0066cc; }
+</style>
+</head>
+<body>
+<h1>Chart Gallery</h1>
+<p class="note">Click a chart to download it. Serve from a local web server (not file://) so ES module imports resolve.</p>
+<div class="controls">
+    <button onclick="downloadAll()">Download All PNGs</button>
+    <span id="status"></span>
+</div>
+<div id="gallery"></div>
+<script type="module">
+import {renderChart} from "./renderers.js";
+import {generateBasePanel, finalizePanel, computeDataSeeds} from "./data.js";
+import {applySignal} from "./design.js";
+import {mulberry32} from "./utils.js";
+import {buildCatalog} from "./catalog.js";
+import {DIST_REPS} from "./config.js";
+
+const dataSeeds = computeDataSeeds(DIST_REPS);
+
+// Canvas export dimensions (displayed at half-size via CSS for retina-friendly renders)
+const CW = 350, CH = 400;
+
+const SIGNALS = [
+    {type: "null", seed: dataSeeds[0], label: "null-1"},
+    {type: "null", seed: dataSeeds[1], label: "null-2"},
+    {type: "null", seed: dataSeeds[3], label: "null-3"},
+    {type: "location", delta_sd: 0.3,        label: "loc-sm"},
+    {type: "location", delta_sd: 0.6,        label: "loc-med"},
+    {type: "location", delta_sd: 1.0,        label: "loc-lg"},
+    {type: "spread",   spread_factor: 1.2,   label: "spread-sm"},
+    {type: "spread",   spread_factor: 1.5,   label: "spread-med"},
+    {type: "spread",   spread_factor: 1.8,   label: "spread-lg"},
+    {type: "bimodal",  separation: 2.0,      label: "bimodal-sm"},
+    {type: "bimodal",  separation: 3.0,      label: "bimodal-med"},
+    {type: "bimodal",  separation: 4.5,      label: "bimodal-lg"},
+];
+
+const catalog = buildCatalog(
+    () => "vertical",
+    () => ({design: {jitter: "density random"}}),
+);
+
+function makePanel(signal) {
+    const seed = signal.seed ?? dataSeeds[0];
+    const base = generateBasePanel("normal", seed);
+    const rng = mulberry32(seed);
+    applySignal(base, "normal", signal, rng, 1);
+    return finalizePanel(base.y, base.group);
+}
+
+function panelBounds(panel) {
+    const all = panel.groups.flat();
+    const lo = Math.min(...all), hi = Math.max(...all);
+    const pad = (hi - lo) * 0.08;
+    return [lo - pad, hi + pad];
+}
+
+const panels = SIGNALS.map(makePanel);
+const bounds = panels.map(panelBounds);
+
+function slug(s) {
+    return s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+}
+
+function el(tag, cls = "", text = "") {
+    const e = document.createElement(tag);
+    if (cls)  e.className   = cls;
+    if (text) e.textContent = text;
+    return e;
+}
+
+const gallery = document.getElementById("gallery");
+
+for (const category of catalog) {
+    const section = document.createElement("section");
+    section.appendChild(Object.assign(document.createElement("h2"), {textContent: category.type}));
+
+    const grid = el("div", "section-grid");
+
+    const hrow = el("div", "chart-row header-row");
+    hrow.appendChild(el("div", "row-label", "variant"));
+    for (const sig of SIGNALS)
+        hrow.appendChild(el("div", "signal-label", sig.label));
+    grid.appendChild(hrow);
+
+    for (const variant of category.variants) {
+        const row = el("div", "chart-row");
+        row.appendChild(el("div", "row-label", variant.description));
+
+        for (let si = 0; si < SIGNALS.length; si++) {
+            const signal = SIGNALS[si];
+            const panel  = panels[si];
+            const [yMin, yMax] = bounds[si];
+
+            const canvas = document.createElement("canvas");
+            canvas.width  = CW;
+            canvas.height = CH;
+            canvas.dataset.filename = `${category.type}__${slug(variant.description)}__${signal.label}.png`;
+            canvas.title = `${variant.description} | ${signal.label}`;
+
+            renderChart(canvas.getContext("2d"), canvas, category.type, panel,
+                yMin, yMax, variant, "vertical", "density random");
+
+            canvas.addEventListener("click", () => downloadCanvas(canvas));
+
+            const cell = el("div", "chart-cell");
+            cell.appendChild(canvas);
+            row.appendChild(cell);
+        }
+
+        grid.appendChild(row);
+    }
+
+    section.appendChild(grid);
+    gallery.appendChild(section);
+}
+
+function downloadCanvas(canvas) {
+    canvas.toBlob(blob => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = canvas.dataset.filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    });
+}
+
+window.downloadAll = function() {
+    const canvases = [...document.querySelectorAll("canvas[data-filename]")];
+    const status = document.getElementById("status");
+    let i = 0;
+    function next() {
+        if (i >= canvases.length) {
+            status.textContent = `Done — ${canvases.length} files.`;
+            return;
+        }
+        status.textContent = `Downloading ${i + 1} / ${canvases.length}…`;
+        downloadCanvas(canvases[i++]);
+        setTimeout(next, 80);
+    }
+    next();
+};
+</script>
+</body>
+</html>

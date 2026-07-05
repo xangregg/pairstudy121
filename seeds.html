@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Seed Gallery</title>
+<style>
+body { font-family: system-ui, sans-serif; margin: 24px; color: #333; }
+h1 { margin-bottom: 4px; }
+p.note { margin: 0 0 20px; font-size: 13px; color: #777; }
+.controls { margin-bottom: 20px; display: flex; gap: 12px; align-items: center; }
+button { padding: 8px 16px; font-size: 14px; cursor: pointer; }
+#status { font-size: 13px; color: #555; }
+.grid { display: flex; flex-wrap: wrap; gap: 16px; }
+.seed-card { display: flex; flex-direction: column; align-items: center; }
+canvas { display: block; border: 1px solid #eee; cursor: pointer; }
+canvas:hover { outline: 2px solid #0066cc; }
+.card-label { font-size: 11px; color: #555; text-align: center; margin-top: 4px; line-height: 1.6; }
+.card-label strong { color: #222; }
+</style>
+</head>
+<body>
+<h1>Seed Gallery</h1>
+<p class="note">All screened data seeds as null dot plot pairs, sorted by KS distance. Click a chart to download it.</p>
+<div class="controls">
+    <button onclick="downloadAll()">Download All PNGs</button>
+    <span id="status"></span>
+</div>
+<div id="gallery" class="grid"></div>
+<script type="module">
+import {renderChart} from "./renderers.js";
+import {generateBasePanel, finalizePanel, computeDataSeeds} from "./data.js";
+import {ksStat} from "./utils.js";
+import {DIST_REPS} from "./config.js";
+
+const CW = 350, CH = 400;
+
+const dataSeeds = computeDataSeeds(DIST_REPS);
+
+// The study draws distReps.normal seeds per chart type group (4 types), so only the
+// first nUsed seeds from the pool are actually assigned to trials.
+const nUsed = DIST_REPS.normal * 4;
+const entries = dataSeeds.slice(0, nUsed).map(seed => {
+    const base = generateBasePanel("normal", seed);
+    const panel = finalizePanel(base.y, base.group);
+    const ks = ksStat(panel.groups[0], panel.groups[1]);
+    return {seed, panel, ks};
+});
+
+entries.sort((a, b) => a.ks - b.ks);
+
+const gallery = document.getElementById("gallery");
+
+for (const {seed, panel, ks} of entries) {
+    const all = panel.groups.flat();
+    const lo = Math.min(...all), hi = Math.max(...all);
+    const pad = (hi - lo) * 0.08;
+
+    const canvas = document.createElement("canvas");
+    canvas.width  = CW;
+    canvas.height = CH;
+    canvas.dataset.filename = `seed_${seed}_ks${ks.toFixed(3)}.png`;
+    canvas.title = canvas.dataset.filename;
+
+    renderChart(canvas.getContext("2d"), canvas, "dot", panel, lo - pad, hi + pad,
+        {showMedian: false}, "vertical", "density random");
+
+    canvas.addEventListener("click", () => downloadCanvas(canvas));
+
+    const label = document.createElement("div");
+    label.className = "card-label";
+    label.innerHTML = `<strong>${seed.toLocaleString()}</strong><br>KS = ${ks.toFixed(3)}`;
+
+    const card = document.createElement("div");
+    card.className = "seed-card";
+    card.appendChild(canvas);
+    card.appendChild(label);
+    gallery.appendChild(card);
+}
+
+function downloadCanvas(canvas) {
+    canvas.toBlob(blob => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = canvas.dataset.filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    });
+}
+
+window.downloadAll = function() {
+    const canvases = [...document.querySelectorAll("canvas[data-filename]")];
+    const status = document.getElementById("status");
+    let i = 0;
+    function next() {
+        if (i >= canvases.length) {
+            status.textContent = `Done — ${canvases.length} files.`;
+            return;
+        }
+        status.textContent = `Downloading ${i + 1} / ${canvases.length}…`;
+        downloadCanvas(canvases[i++]);
+        setTimeout(next, 80);
+    }
+    next();
+};
+</script>
+</body>
+</html>
